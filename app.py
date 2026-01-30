@@ -214,11 +214,11 @@ def delete_away_test():
 
 
 @app.post("/InsertIntoMatchHeader/")
-def delete_away_test():
+def Insert_Into_MatchHeader():
     conn = get_conn()
     cur = conn.cursor()
     try:
-        cur.callproc("SP_InserIntoMatchHeader")
+        cur.callproc("SP_InsertIntoMatchHeader")
         conn.commit()
         return {"status": "ok"}
     except Exception as e:
