@@ -209,3 +209,20 @@ def delete_away_test():
         return {"error": str(e)}
     finally:
         conn.close()
+
+
+
+
+@app.post("/InsertIntoMatchHeader/")
+def delete_away_test():
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.callproc("SP_InserIntoMatchHeader")
+        conn.commit()
+        return {"status": "ok"}
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}
+    finally:
+        conn.close()
