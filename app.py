@@ -154,7 +154,7 @@ def insert_test():
     finally:
         conn.close()
 
-@app.post("/InsertPointPadelHome/")
+@app.post("/InsertPointPadelGoldenHome/")
 def insert_home_test():
     conn = get_conn()
     cur = conn.cursor()
@@ -168,7 +168,7 @@ def insert_home_test():
     finally:
         conn.close()
 
-@app.post("/InsertPointPadelAway/")
+@app.post("/InsertPointPadelGoldenAway/")
 def insert_away_test():
     conn = get_conn()
     cur = conn.cursor()
