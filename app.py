@@ -173,7 +173,7 @@ def insert_away_test():
     conn = get_conn()
     cur = conn.cursor()
     try:
-        cur.callproc("SP_InsertIntoMatchDetailPoint_TestAway")
+        cur.callproc("SP_InsertIntoMatchDetailPoint_ChatGPT_Away")
         conn.commit()
         return {"status": "ok"}
     except Exception as e:
