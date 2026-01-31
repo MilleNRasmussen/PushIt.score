@@ -159,7 +159,7 @@ def insert_home_test():
     conn = get_conn()
     cur = conn.cursor()
     try:
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Home")
+        cur.callproc("SP_InsertIntoMatchDetailPadelGolden_Home")
         conn.commit()
         return {"status": "ok"}
     except Exception as e:
@@ -173,7 +173,7 @@ def insert_away_test():
     conn = get_conn()
     cur = conn.cursor()
     try:
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Away")
+        cur.callproc("SP_InsertIntoMatchDetailPadelGolden_Away")
         conn.commit()
         return {"status": "ok"}
     except Exception as e:
