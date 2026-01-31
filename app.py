@@ -154,12 +154,12 @@ def insert_test():
     finally:
         conn.close()
 
-@app.post("/InsertPointHomeTest/")
+@app.post("/InsertPointPadelHome/")
 def insert_home_test():
     conn = get_conn()
     cur = conn.cursor()
     try:
-        cur.callproc("SP_InsertIntoMatchDetailPoint_Test")
+        cur.callproc("SP_InsertIntoMatchDetailPadel_Home")
         conn.commit()
         return {"status": "ok"}
     except Exception as e:
@@ -168,12 +168,12 @@ def insert_home_test():
     finally:
         conn.close()
 
-@app.post("/InsertPointAwayTest/")
+@app.post("/InsertPointPadelAway/")
 def insert_away_test():
     conn = get_conn()
     cur = conn.cursor()
     try:
-        cur.callproc("SP_InsertIntoMatchDetailPoint_ChatGPT_Away")
+        cur.callproc("SP_InsertIntoMatchDetailPadel_Away")
         conn.commit()
         return {"status": "ok"}
     except Exception as e:
