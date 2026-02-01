@@ -103,6 +103,16 @@ def read_tournament_type():
     conn.close()
     return rows
 
+
+@app.get("/MatchLivescore/")
+def read_match_livescore():
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT MatchHeaderID, HomeTeamPoint, HomeGame, HomeSet, AwayTeamPoint, AwayGame, AwaySet FROM railway.MatchesScoreActual;")
+    rows = cur.fetchall()
+    conn.close()
+    return rows
+
 # ---------- POST ENDPOINTS ----------
 @app.post("/MatchHeaderInsert/")
 def insert_matchheader(data: TournamentIn):
