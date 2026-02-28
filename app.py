@@ -252,7 +252,7 @@ async def flic_webhook(request: Request):
         print("HEADERS:", request.headers)
 
         # Flic sender typisk serienummer her:
-        button_id = request.headers.get("X-Flic-Button-Serial-Number")
+        button_id = request.headers.get("button-serial-number")
 
         if not button_id:
             return {"error": "No button id in headers"}
