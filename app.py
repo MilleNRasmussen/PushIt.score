@@ -248,14 +248,14 @@ async def flic_webhook(request: Request):
     conn = get_conn()
     cur = conn.cursor()
     try:
-        data = await request.json()
+        # 🔎 Print headers for at se hvad Flic sender
+        print("HEADERS:", request.headers)
 
-        # Flic Cloud sender typisk button_uuid
-        # Flic Hub sender typisk bdaddr
-        button_id = data.get("button_uuid") or data.get("bdaddr")
+        # Flic sender typisk serienummer her:
+        button_id = request.headers.get("X-Flic-Button-Serial-Number")
 
         if not button_id:
-            return {"error": "No button id found in payload"}
+            return {"error": "No button id in headers"}
 
         cur.execute(
             "INSERT INTO ButtonLog (ButtonId) VALUES (%s)",
