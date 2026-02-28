@@ -259,7 +259,7 @@ async def flic_webhook(request: Request):
 
         cur.execute(
             "INSERT INTO ButtonLog (ButtonId) VALUES (%s)",
-            (buttonId,)
+            (button_id,)
         )
 
         conn.commit()
