@@ -5,6 +5,8 @@ from typing import List
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi import Request
+
 app = FastAPI()
 
 app.add_middleware(
@@ -231,6 +233,38 @@ def Insert_Into_MatchHeader():
         cur.callproc("SP_InsertIntoMatchHeader")
         conn.commit()
         return {"status": "ok"}
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}
+    finally:
+        conn.close()
+
+
+
+
+
+@app.post("/flic-webhook/")
+async def flic_webhook(request: Request):
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        data = await request.json()
+
+        # Flic Cloud sender typisk button_uuid
+        # Flic Hub sender typisk bdaddr
+        button_id = data.get("button_uuid") or data.get("bdaddr")
+
+        if not button_id:
+            return {"error": "No button id found in payload"}
+
+        cur.execute(
+            "INSERT INTO ButtonLog (ButtonId) VALUES (%s)",
+            (button_id,)
+        )
+
+        conn.commit()
+        return {"status": "button id saved"}
+
     except Exception as e:
         conn.rollback()
         return {"error": str(e)}
