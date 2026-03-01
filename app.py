@@ -241,32 +241,27 @@ def Insert_Into_MatchHeader():
 
 
 
-
-
 @app.post("/flic-webhook/")
 async def flic_webhook(request: Request):
     conn = get_conn()
     cur = conn.cursor()
-    try:
-        # 🔎 Print headers for at se hvad Flic sender
-        print("HEADERS:", request.headers)
 
-        # Flic sender typisk serienummer her:
+    try:
         button_id = request.headers.get("button-serial-number")
 
         if not button_id:
-            return {"error": "No button id in headers"}
+            return {"error": "No button id"}
 
-        cur.execute(
-            "INSERT INTO ButtonLog (ButtonId) VALUES (%s)",
-            (button_id,)
-        )
+        # kald stored procedure
+        cur.callproc("SP_InsertIntoMatchDetailPoint", (button_id,))
 
         conn.commit()
-        return {"status": "button id saved"}
+
+        return {"status": "ok"}
 
     except Exception as e:
         conn.rollback()
         return {"error": str(e)}
+
     finally:
         conn.close()
