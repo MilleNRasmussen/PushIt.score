@@ -241,7 +241,7 @@ def Insert_Into_MatchHeader():
 
 
 
-@app.post("/flic-webhook/")
+@app.post("/flic-webhook_Home/")
 async def flic_webhook(request: Request):
     conn = get_conn()
     cur = conn.cursor()
@@ -254,6 +254,32 @@ async def flic_webhook(request: Request):
 
         # kald stored procedure
         cur.callproc("SP_InsertIntoMatchDetailPadel_Home", (button_id,))
+
+        conn.commit()
+
+        return {"status": "ok"}
+
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
+
+
+@app.post("/flic-webhook_Away/")
+async def flic_webhook(request: Request):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        button_id = request.headers.get("button-serial-number")
+
+        if not button_id:
+            return {"error": "No button id"}
+
+        # kald stored procedure
+        cur.callproc("SP_InsertIntoMatchDetailPadel_Away", (button_id,))
 
         conn.commit()
 
