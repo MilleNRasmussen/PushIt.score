@@ -253,7 +253,7 @@ async def flic_webhook(request: Request):
             return {"error": "No button id"}
 
         # kald stored procedure
-        cur.callproc("SP_InsertIntoMatchDetailPoint", (button_id,))
+        cur.callproc("SP_InsertIntoMatchDetailPadel_Home", (button_id,))
 
         conn.commit()
 
