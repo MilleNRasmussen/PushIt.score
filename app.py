@@ -240,30 +240,24 @@ def Insert_Into_MatchHeader():
         conn.close()
 
 
-app = FastAPI()
-
 @app.get("/users")
 def get_users():
+    conn = get_conn()
+    cur = conn.cursor()
 
-    conn = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="password",
-        database="pushit"
-    )
+    cur.execute("""
+        SELECT
+        ID as id,
+        Navn as name,
+        NULL as avatar
+        FROM Users
+    """)
 
-    cursor = conn.cursor(dictionary=True)
+    users = cur.fetchall()
 
-    cursor.execute("SELECT id, name, avatar FROM users")
-
-    users = cursor.fetchall()
-
-    cursor.close()
     conn.close()
 
     return users
-
-
 
 
 @app.post("/flic-webhook_Home/")
