@@ -32,10 +32,10 @@ def get_conn():
 class TextInput(BaseModel):
     text: str
 
-class TournamentIn(BaseModel):
+class In(BaseModel):
     text: str
-    tournament_type_id: int
-    tournament_gamemode_id: int
+    _type_id: int
+    _gamemode_id: int
     players: List[int]
 
 # ---------- GET ENDPOINTS ----------
@@ -48,8 +48,8 @@ def read_matchheader():
     conn.close()
     return rows
 
-@app.get("/TournamentGamemode/")
-def read_tournament_gamemode():
+@app.get("/Gamemode/")
+def read__gamemode():
     conn = get_conn()
     cur = conn.cursor()
     cur.execute("""
@@ -96,23 +96,39 @@ def read_users():
     conn.close()
     return rows
 
-@app.get("/Tournament_Type/")
-def read_tournament_type():
+@app.get("/MatchType/")
+def read_Matchtype():
     conn = get_conn()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM Tournament_Type")
+    cur.execute("SELECT * FROM MatchType")
     rows = cur.fetchall()
     conn.close()
     return rows
 
 
-@app.get("/MatchLivescore/")
-def read_match_livescore():
+@app.get("/MatchLivescore/{match_id}")
+def read_match_livescore(match_id: int):
+
     conn = get_conn()
     cur = conn.cursor()
-    cur.execute("SELECT MatchHeaderID, HomeTeamPoint, HomeGame, HomeSet, AwayTeamPoint, AwayGame, AwaySet FROM railway.MatchesScoreActual;")
+
+    cur.execute("""
+        SELECT 
+            MatchHeaderID,
+            HomeTeamPoint,
+            HomeGame,
+            HomeSet,
+            AwayTeamPoint,
+            AwayGame,
+            AwaySet
+        FROM MatchesScoreActual
+        WHERE MatchHeaderID = %s
+    """, (match_id,))
+
     rows = cur.fetchall()
+
     conn.close()
+
     return rows
 
 # ---------- POST ENDPOINTS ----------
