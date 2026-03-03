@@ -1,372 +1,371 @@
-import os
-import pymysql
-from fastapi import FastAPI
-from typing import List
-from pydantic import BaseModel
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi import Request
+"use client"
 
-app = FastAPI()
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+type Player = {
+  id: number
+  name: string
+  avatar?: string
+}
+
+export default function Page(){
+
+const router = useRouter()
+
+const [players,setPlayers] = useState<Player[]>([])
+const [search,setSearch] = useState("")
+const [mode,setMode] = useState<"1v1"|"2v2">("2v2")
+const [teamA,setTeamA] = useState<(Player|null)[]>([null,null])
+const [teamB,setTeamB] = useState<(Player|null)[]>([null,null])
+const [showPopup,setShowPopup] = useState(false)
+const [countdown,setCountdown] = useState(3)
+
+useEffect(()=>{
+
+ fetch("https://pushitscore-production.up.railway.app/Users/")
+  .then(res=>res.json())
+  .then(data=>{
+
+    console.log("Users API:",data)
+
+    if(Array.isArray(data)){
+      setPlayers(data)
+    }else{
+      console.error("Users API returnerede ikke en array")
+      setPlayers([])
+    }
+
+  })
+  .catch(err=>{
+    console.error("Users fetch fejl:",err)
+    setPlayers([])
+  })
+
+},[])
+
+function addPlayer(player:Player){
+
+ if(!teamA[0]){
+   setTeamA([player,teamA[1]])
+   setPlayers(players.filter(p=>p.id!==player.id))
+   return
+ }
+
+ if(mode==="2v2" && !teamA[1]){
+   setTeamA([teamA[0],player])
+   setPlayers(players.filter(p=>p.id!==player.id))
+   return
+ }
+
+ if(!teamB[0]){
+   setTeamB([player,teamB[1]])
+   setPlayers(players.filter(p=>p.id!==player.id))
+   return
+ }
+
+ if(mode==="2v2" && !teamB[1]){
+   setTeamB([teamB[0],player])
+   setPlayers(players.filter(p=>p.id!==player.id))
+   return
+ }
+
+}
+
+function removePlayer(team:"A"|"B",index:number){
+
+ if(team==="A"){
+   const player=teamA[index]
+   const updated=[...teamA]
+   updated[index]=null
+   setTeamA(updated)
+   if(player) setPlayers([...players,player])
+ }
+
+ if(team==="B"){
+   const player=teamB[index]
+   const updated=[...teamB]
+   updated[index]=null
+   setTeamB(updated)
+   if(player) setPlayers([...players,player])
+ }
+
+}
+
+function Avatar({player}:{player:Player|null}){
+
+ if(!player){
+   return(
+     <div className="w-12 h-12 rounded-full bg-slate-500 flex items-center justify-center">
+       ?
+     </div>
+   )
+ }
+
+ if(player.avatar){
+   return(
+     <img
+       src={player.avatar}
+       className="w-12 h-12 rounded-full object-cover"
+     />
+   )
+ }
+
+ return(
+   <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center font-bold">
+     {player.name.charAt(0)}
+   </div>
+ )
+
+}
+
+const filtered = players.filter(p =>
+ p.name.toLowerCase().includes(search.toLowerCase())
 )
 
-# ---------- DATABASE ----------
+async function startMatch(){
 
-def get_conn():
-    return pymysql.connect(
-        host=os.environ["MYSQLHOST"],
-        user=os.environ["MYSQLUSER"],
-        password=os.environ["MYSQLPASSWORD"],
-        database=os.environ["MYSQLDATABASE"],
-        port=int(os.environ["MYSQLPORT"]),
-        cursorclass=pymysql.cursors.DictCursor,
-        autocommit=False
-    )
+ const selectedPlayers = [
+ teamA[0],
+ teamA[1],
+ teamB[0],
+ teamB[1]
+ ].filter(p=>p!==null)
 
-# ---------- MODELS ----------
+ if(selectedPlayers.length < 2){
+ alert("Vælg mindst 2 spillere")
+ return
+ }
 
-class In(BaseModel):
-    text: str
-    _type_id: int
-    _gamemode_id: int
-    players: List[int]
+ const playerIds = selectedPlayers.map(p=>p!.id)
 
-class MatchCreate(BaseModel):
-    match_type_id: int
-    match_gamemode_id: int
-    players: List[int]
+ const res = await fetch("https://pushitscore-production.up.railway.app/MatchHeaderInsert/",{
+ method:"POST",
+ headers:{
+ "Content-Type":"application/json"
+ },
+ body:JSON.stringify({
+ match_type_id:1,
+ match_gamemode_id: mode==="2v2" ? 2 : 1,
+ players:playerIds
+ })
+ })
 
-# ---------- GET ENDPOINTS ----------
+ const result = await res.json()
 
-@app.get("/MatchHeader/")
-def read_matchheader():
+ console.log("Match API:",result)
 
-    conn = get_conn()
-    cur = conn.cursor()
+ const matchId = result.match_id ?? result.id ?? result.matchId
 
-    cur.execute("SELECT * FROM MatchHeader")
+ if(!matchId){
+ alert("Match ID mangler fra API")
+ return
+ }
 
-    rows = cur.fetchall()
+ setShowPopup(true)
 
-    conn.close()
+ let counter = 3
 
-    return rows
+ const interval = setInterval(()=>{
 
+ counter--
+ setCountdown(counter)
 
-@app.get("/Gamemode/")
-def read_gamemode():
+ if(counter===0){
 
-    conn = get_conn()
-    cur = conn.cursor()
+ clearInterval(interval)
 
-    cur.execute("""
-        SELECT ID, Value, TournamentTypeID AS Tournament_TypeID
-        FROM TournamentGameMode
-    """)
+ router.push(`/livescore/${matchId}`)
 
-    rows = cur.fetchall()
+ }
 
-    conn.close()
+ },1000)
 
-    return rows
+}
 
+return(
+<div className="min-h-screen bg-gradient-to-b from-[#0a2342] to-[#081a33] text-white flex flex-col items-center p-10">
 
-@app.get("/MatchDetail/")
-def read_matchdetail():
+<div className="flex items-start justify-center gap-16 mb-10">
 
-    conn = get_conn()
-    cur = conn.cursor()
+<div className="bg-[#132c52] rounded-xl p-6 w-56">
 
-    cur.execute("SELECT * FROM MatchDetail")
+<h2 className="text-center mb-4 font-semibold">
+Team A
+</h2>
 
-    rows = cur.fetchall()
+<div className="space-y-4">
 
-    conn.close()
+{teamA.map((player,i)=>{
 
-    return rows
+const disabled = mode==="1v1" && i===1
 
+return(
 
-@app.get("/MatchScore/")
-def read_matchscore():
+<div
+key={i}
+onDoubleClick={()=>removePlayer("A",i)}
+className={`flex items-center gap-3 p-3 rounded-lg ${
+ disabled
+ ? "bg-slate-700 opacity-40"
+ : "bg-[#1b3b6f]"
+}`}
+>
 
-    conn = get_conn()
-    cur = conn.cursor()
+<Avatar player={player}/>
 
-    cur.execute("SELECT * FROM MatchScore")
+{disabled
+ ? "Ikke aktiv"
+ : player
+ ? player.name
+ : "Tom plads"}
 
-    rows = cur.fetchall()
+</div>
 
-    conn.close()
+)
 
-    return rows
+})}
 
+</div>
+</div>
 
-@app.get("/Users/")
-def read_users():
+<div className="text-3xl font-bold opacity-70 mt-12">
+VS
+</div>
 
-    conn = get_conn()
-    cur = conn.cursor()
+<div className="bg-[#132c52] rounded-xl p-6 w-56">
 
-    cur.execute("""
-        SELECT
-        ID as id,
-        Navn as name,
-        NULL as avatar
-        FROM Users
-    """)
+<h2 className="text-center mb-4 font-semibold">
+Team B
+</h2>
 
-    users = cur.fetchall()
+<div className="space-y-4">
 
-    conn.close()
+{teamB.map((player,i)=>{
 
-    return users
+const disabled = mode==="1v1" && i===1
 
+return(
 
-@app.get("/MatchType/")
-def read_matchtype():
+<div
+key={i}
+onDoubleClick={()=>removePlayer("B",i)}
+className={`flex items-center gap-3 p-3 rounded-lg ${
+ disabled
+ ? "bg-slate-700 opacity-40"
+ : "bg-[#1b3b6f]"
+}`}
+>
 
-    conn = get_conn()
-    cur = conn.cursor()
+<Avatar player={player}/>
 
-    cur.execute("SELECT * FROM MatchType")
+{disabled
+ ? "Ikke aktiv"
+ : player
+ ? player.name
+ : "Tom plads"}
 
-    rows = cur.fetchall()
+</div>
 
-    conn.close()
+)
 
-    return rows
+})}
 
+</div>
+</div>
 
-# ---------- LIVESCORE ----------
+</div>
 
-@app.get("/MatchLivescore/{match_id}")
-def read_match_livescore(match_id: int):
+<div className="flex gap-6 bg-[#132c52] p-4 rounded-xl justify-center mb-6">
 
-    conn = get_conn()
-    cur = conn.cursor()
+<label className="flex items-center gap-2">
+<input
+type="radio"
+checked={mode==="1v1"}
+onChange={()=>setMode("1v1")}
+/>
+1 vs 1
+</label>
 
-    cur.execute("""
-        SELECT 
-            MatchHeaderID,
-            HomeTeamPoint,
-            HomeGame,
-            HomeSet,
-            AwayTeamPoint,
-            AwayGame,
-            AwaySet
-        FROM MatchesScoreActual
-        WHERE MatchHeaderID = %s
-    """, (match_id,))
+<label className="flex items-center gap-2">
+<input
+type="radio"
+checked={mode==="2v2"}
+onChange={()=>setMode("2v2")}
+/>
+2 vs 2
+</label>
 
-    row = cur.fetchone()
+</div>
 
-    conn.close()
+<div className="w-full max-w-2xl space-y-6">
 
-    # hvis kampen endnu ikke har score
-    if not row:
-        return [{
-            "MatchHeaderID": match_id,
-            "HomeTeamPoint": 0,
-            "HomeGame": 0,
-            "HomeSet": 0,
-            "AwayTeamPoint": 0,
-            "AwayGame": 0,
-            "AwaySet": 0
-        }]
+<input
+placeholder="Søg spiller"
+value={search}
+onChange={e=>setSearch(e.target.value)}
+className="w-full bg-[#132c52] rounded-xl p-3 outline-none"
+/>
 
-    return [row]
+<div className="bg-[#132c52] rounded-xl p-5 space-y-3 max-h-[350px] overflow-auto">
 
+{filtered.map(player=>(
 
-# ---------- POST ENDPOINTS ----------
+<button
+key={player.id}
+onClick={()=>addPlayer(player)}
+className="w-full flex items-center gap-3 bg-[#1b3b6f] hover:bg-[#234a85] p-3 rounded-lg"
+>
 
-@app.post("/MatchHeaderInsert/")
-def insert_matchheader(data: MatchCreate):
+<Avatar player={player}/>
+{player.name}
 
-    if len(data.players) < 2:
-        return {"error": "Der skal vælges mindst 2 spillere"}
+</button>
 
-    conn = get_conn()
-    cur = conn.cursor()
+))}
 
-    try:
+</div>
 
-        cur.execute("""
-            INSERT INTO MatchHeader (TableID, Timestamp, MatchTypeID, MatchGamemodeID)
-            VALUES (1, NOW(), %s, %s)
-        """, (data.match_type_id, data.match_gamemode_id))
+</div>
 
-        match_id = cur.lastrowid
+<div className="mt-10">
 
-        for index, user_id in enumerate(data.players, start=1):
+<button
+onClick={startMatch}
+className="w-96 bg-blue-600 hover:bg-blue-500 py-4 rounded-xl text-lg font-semibold"
+>
 
-            cur.execute("""
-                INSERT INTO MatchPlayers
-                (MatchHeaderID, PlayerNumber, PlayerID, Timestamp)
-                VALUES (%s, %s, %s, NOW())
-            """, (match_id, index, user_id))
+Start kamp
 
-        conn.commit()
+</button>
 
-        return {
-            "status": "ok",
-            "match_id": match_id
-        }
+</div>
 
-    except Exception as e:
+{showPopup && (
 
-        conn.rollback()
+<div className="fixed inset-0 flex items-center justify-center bg-black/70">
 
-        return {"error": str(e)}
+<div className="bg-[#132c52] p-10 rounded-xl text-center">
 
-    finally:
+<h2 className="text-2xl mb-4">
+Kampen er klar
+</h2>
 
-        conn.close()
+<p className="mb-4">
+Du viderestilles til kampen
+</p>
 
+<div className="text-5xl font-bold">
+{countdown}
+</div>
 
-# ---------- TEST INSERT ----------
+</div>
 
-@app.post("/InsertTest/")
-def insert_test():
+</div>
 
-    conn = get_conn()
-    cur = conn.cursor()
+)}
 
-    try:
+</div>
+)
 
-        cur.execute("""
-            INSERT INTO MatchHeader (TableID, Timestamp, MatchTypeID, MatchGamemodeID)
-            VALUES (1, NOW(), 2, 2)
-        """)
-
-        conn.commit()
-
-        return {"status": "ok"}
-
-    except Exception as e:
-
-        conn.rollback()
-
-        return {"error": str(e)}
-
-    finally:
-
-        conn.close()
-
-
-# ---------- POINTS ----------
-
-@app.post("/InsertPointPadelHome/")
-def insert_home():
-
-    conn = get_conn()
-    cur = conn.cursor()
-
-    try:
-
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Home")
-
-        conn.commit()
-
-        return {"status": "ok"}
-
-    except Exception as e:
-
-        conn.rollback()
-
-        return {"error": str(e)}
-
-    finally:
-
-        conn.close()
-
-
-@app.post("/InsertPointPadelAway/")
-def insert_away():
-
-    conn = get_conn()
-    cur = conn.cursor()
-
-    try:
-
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Away")
-
-        conn.commit()
-
-        return {"status": "ok"}
-
-    except Exception as e:
-
-        conn.rollback()
-
-        return {"error": str(e)}
-
-    finally:
-
-        conn.close()
-
-
-# ---------- FLIC BUTTON WEBHOOKS ----------
-
-@app.post("/flic-webhook_Home/")
-async def flic_webhook_home(request: Request):
-
-    conn = get_conn()
-    cur = conn.cursor()
-
-    try:
-
-        button_id = request.headers.get("button-serial-number")
-
-        if not button_id:
-            return {"error": "No button id"}
-
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Home", (button_id,))
-
-        conn.commit()
-
-        return {"status": "ok"}
-
-    except Exception as e:
-
-        conn.rollback()
-
-        return {"error": str(e)}
-
-    finally:
-
-        conn.close()
-
-
-@app.post("/flic-webhook_Away/")
-async def flic_webhook_away(request: Request):
-
-    conn = get_conn()
-    cur = conn.cursor()
-
-    try:
-
-        button_id = request.headers.get("button-serial-number")
-
-        if not button_id:
-            return {"error": "No button id"}
-
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Away", (button_id,))
-
-        conn.commit()
-
-        return {"status": "ok"}
-
-    except Exception as e:
-
-        conn.rollback()
-
-        return {"error": str(e)}
-
-    finally:
-
-        conn.close()
+}
