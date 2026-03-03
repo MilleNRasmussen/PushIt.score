@@ -1,9 +1,10 @@
 import os
 import pymysql
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from typing import List
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Request
 
 app = FastAPI()
 
@@ -29,15 +30,84 @@ def get_conn():
 
 # ---------- MODELS ----------
 
+class In(BaseModel):
+    text: str
+    _type_id: int
+    _gamemode_id: int
+    players: List[int]
+
 class MatchCreate(BaseModel):
     match_type_id: int
     match_gamemode_id: int
     players: List[int]
 
-# ---------- USERS ----------
+# ---------- GET ENDPOINTS ----------
 
-@app.get("/users")
-def get_users():
+@app.get("/MatchHeader/")
+def read_matchheader():
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM MatchHeader")
+
+    rows = cur.fetchall()
+
+    conn.close()
+
+    return rows
+
+
+@app.get("/Gamemode/")
+def read_gamemode():
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT ID, Value, TournamentTypeID AS Tournament_TypeID
+        FROM TournamentGameMode
+    """)
+
+    rows = cur.fetchall()
+
+    conn.close()
+
+    return rows
+
+
+@app.get("/MatchDetail/")
+def read_matchdetail():
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM MatchDetail")
+
+    rows = cur.fetchall()
+
+    conn.close()
+
+    return rows
+
+
+@app.get("/MatchScore/")
+def read_matchscore():
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM MatchScore")
+
+    rows = cur.fetchall()
+
+    conn.close()
+
+    return rows
+
+
+@app.get("/Users/")
+def read_users():
 
     conn = get_conn()
     cur = conn.cursor()
@@ -56,7 +126,6 @@ def get_users():
 
     return users
 
-# ---------- MATCH TYPES ----------
 
 @app.get("/MatchType/")
 def read_matchtype():
@@ -72,7 +141,48 @@ def read_matchtype():
 
     return rows
 
-# ---------- CREATE MATCH ----------
+
+# ---------- LIVESCORE ----------
+
+@app.get("/MatchLivescore/{match_id}")
+def read_match_livescore(match_id: int):
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT 
+            MatchHeaderID,
+            HomeTeamPoint,
+            HomeGame,
+            HomeSet,
+            AwayTeamPoint,
+            AwayGame,
+            AwaySet
+        FROM MatchesScoreActual
+        WHERE MatchHeaderID = %s
+    """, (match_id,))
+
+    row = cur.fetchone()
+
+    conn.close()
+
+    # hvis kampen endnu ikke har score
+    if not row:
+        return [{
+            "MatchHeaderID": match_id,
+            "HomeTeamPoint": 0,
+            "HomeGame": 0,
+            "HomeSet": 0,
+            "AwayTeamPoint": 0,
+            "AwayGame": 0,
+            "AwaySet": 0
+        }]
+
+    return [row]
+
+
+# ---------- POST ENDPOINTS ----------
 
 @app.post("/MatchHeaderInsert/")
 def insert_matchheader(data: MatchCreate):
@@ -86,87 +196,72 @@ def insert_matchheader(data: MatchCreate):
     try:
 
         cur.execute("""
-            INSERT INTO MatchHeader
-            (TableID, Timestamp, MatchTypeID, MatchGamemodeID)
+            INSERT INTO MatchHeader (TableID, Timestamp, MatchTypeID, MatchGamemodeID)
             VALUES (1, NOW(), %s, %s)
         """, (data.match_type_id, data.match_gamemode_id))
 
         match_id = cur.lastrowid
 
-
-        # ---------- INSERT PLAYERS ----------
-
         for index, user_id in enumerate(data.players, start=1):
 
             cur.execute("""
                 INSERT INTO MatchPlayers
-                (MatchID, PlayerNumber, PlayerID, Timestamp)
-                VALUES (%s,%s,%s,NOW())
+                (MatchHeaderID, PlayerNumber, PlayerID, Timestamp)
+                VALUES (%s, %s, %s, NOW())
             """, (match_id, index, user_id))
-
-
-        # ---------- CREATE START SCORE ----------
-
-        cur.execute("""
-            INSERT INTO MatchScoreActual
-            (MatchHeaderID,
-            HomeTeamPoint,
-            HomeGame,
-            HomeSet,
-            AwayTeamPoint,
-            AwayGame,
-            AwaySet)
-            VALUES (%s,0,0,0,0,0,0)
-        """,(match_id,))
 
         conn.commit()
 
         return {
-            "status":"ok",
-            "match_id":match_id
+            "status": "ok",
+            "match_id": match_id
         }
 
     except Exception as e:
 
         conn.rollback()
 
-        return {"error":str(e)}
+        return {"error": str(e)}
 
     finally:
 
         conn.close()
 
-# ---------- LIVESCORE ----------
 
-@app.get("/MatchLivescore/{match_id}")
-def read_match_livescore(match_id:int):
+# ---------- TEST INSERT ----------
+
+@app.post("/InsertTest/")
+def insert_test():
 
     conn = get_conn()
     cur = conn.cursor()
 
-    cur.execute("""
-        SELECT
-            MatchHeaderID,
-            HomeTeamPoint,
-            HomeGame,
-            HomeSet,
-            AwayTeamPoint,
-            AwayGame,
-            AwaySet
-        FROM MatchScoreActual
-        WHERE MatchHeaderID=%s
-    """,(match_id,))
+    try:
 
-    rows = cur.fetchall()
+        cur.execute("""
+            INSERT INTO MatchHeader (TableID, Timestamp, MatchTypeID, MatchGamemodeID)
+            VALUES (1, NOW(), 2, 2)
+        """)
 
-    conn.close()
+        conn.commit()
 
-    return rows
+        return {"status": "ok"}
 
-# ---------- PADDEL POINTS ----------
+    except Exception as e:
+
+        conn.rollback()
+
+        return {"error": str(e)}
+
+    finally:
+
+        conn.close()
+
+
+# ---------- POINTS ----------
 
 @app.post("/InsertPointPadelHome/")
-def insert_home_point():
+def insert_home():
 
     conn = get_conn()
     cur = conn.cursor()
@@ -177,13 +272,13 @@ def insert_home_point():
 
         conn.commit()
 
-        return {"status":"ok"}
+        return {"status": "ok"}
 
     except Exception as e:
 
         conn.rollback()
 
-        return {"error":str(e)}
+        return {"error": str(e)}
 
     finally:
 
@@ -191,7 +286,7 @@ def insert_home_point():
 
 
 @app.post("/InsertPointPadelAway/")
-def insert_away_point():
+def insert_away():
 
     conn = get_conn()
     cur = conn.cursor()
@@ -202,22 +297,23 @@ def insert_away_point():
 
         conn.commit()
 
-        return {"status":"ok"}
+        return {"status": "ok"}
 
     except Exception as e:
 
         conn.rollback()
 
-        return {"error":str(e)}
+        return {"error": str(e)}
 
     finally:
 
         conn.close()
 
-# ---------- FLIC WEBHOOKS ----------
+
+# ---------- FLIC BUTTON WEBHOOKS ----------
 
 @app.post("/flic-webhook_Home/")
-async def flic_home(request: Request):
+async def flic_webhook_home(request: Request):
 
     conn = get_conn()
     cur = conn.cursor()
@@ -227,19 +323,19 @@ async def flic_home(request: Request):
         button_id = request.headers.get("button-serial-number")
 
         if not button_id:
-            return {"error":"No button id"}
+            return {"error": "No button id"}
 
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Home",(button_id,))
+        cur.callproc("SP_InsertIntoMatchDetailPadel_Home", (button_id,))
 
         conn.commit()
 
-        return {"status":"ok"}
+        return {"status": "ok"}
 
     except Exception as e:
 
         conn.rollback()
 
-        return {"error":str(e)}
+        return {"error": str(e)}
 
     finally:
 
@@ -247,7 +343,7 @@ async def flic_home(request: Request):
 
 
 @app.post("/flic-webhook_Away/")
-async def flic_away(request: Request):
+async def flic_webhook_away(request: Request):
 
     conn = get_conn()
     cur = conn.cursor()
@@ -257,19 +353,19 @@ async def flic_away(request: Request):
         button_id = request.headers.get("button-serial-number")
 
         if not button_id:
-            return {"error":"No button id"}
+            return {"error": "No button id"}
 
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Away",(button_id,))
+        cur.callproc("SP_InsertIntoMatchDetailPadel_Away", (button_id,))
 
         conn.commit()
 
-        return {"status":"ok"}
+        return {"status": "ok"}
 
     except Exception as e:
 
         conn.rollback()
 
-        return {"error":str(e)}
+        return {"error": str(e)}
 
     finally:
 
