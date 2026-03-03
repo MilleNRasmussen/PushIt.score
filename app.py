@@ -120,6 +120,10 @@ def read_matchtype():
 
 # ---------- LIVESCORE ----------
 
+
+
+
+
 @app.get("/MatchLivescore/{match_id}")
 def read_match_livescore(match_id: int):
 
@@ -128,7 +132,7 @@ def read_match_livescore(match_id: int):
 
     cur.execute("""
         SELECT 
-            MatchID as MatchHeaderID,
+            MatchHeaderID,
             HomeTeamPoint,
             HomeGame,
             HomeSet,
@@ -136,7 +140,8 @@ def read_match_livescore(match_id: int):
             AwayGame,
             AwaySet
         FROM MatchesScoreActual
-        WHERE MatchID = %s
+        WHERE MatchHeaderID = %s
+        LIMIT 1
     """, (match_id,))
 
     row = cur.fetchone()
@@ -144,7 +149,7 @@ def read_match_livescore(match_id: int):
     conn.close()
 
     if not row:
-        return [{
+        return {
             "MatchHeaderID": match_id,
             "HomeTeamPoint": 0,
             "HomeGame": 0,
@@ -152,9 +157,28 @@ def read_match_livescore(match_id: int):
             "AwayTeamPoint": 0,
             "AwayGame": 0,
             "AwaySet": 0
-        }]
+        }
 
-    return [row]
+    return row
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # ---------- CREATE MATCH ----------
