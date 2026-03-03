@@ -9,13 +9,15 @@ app = FastAPI()
 
 # ---------- CORS ----------
 
+origins = [
+    "https://pushit.games",
+    "https://www.pushit.games",
+    "http://localhost:3000"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://www.pushit.games",
-        "https://pushit.games",
-        "*"
-    ],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,75 +43,54 @@ class MatchCreate(BaseModel):
     match_gamemode_id: int
     players: List[int]
 
-# ---------- GET ENDPOINTS ----------
+# ---------- GET ----------
 
 @app.get("/MatchHeader/")
 def read_matchheader():
-
     conn = get_conn()
     cur = conn.cursor()
-
     cur.execute("SELECT * FROM MatchHeader")
-
     rows = cur.fetchall()
-
     conn.close()
-
     return rows
 
 
 @app.get("/Gamemode/")
 def read_gamemode():
-
     conn = get_conn()
     cur = conn.cursor()
-
     cur.execute("""
         SELECT ID, Value, TournamentTypeID AS Tournament_TypeID
         FROM TournamentGameMode
     """)
-
     rows = cur.fetchall()
-
     conn.close()
-
     return rows
 
 
 @app.get("/MatchDetail/")
 def read_matchdetail():
-
     conn = get_conn()
     cur = conn.cursor()
-
     cur.execute("SELECT * FROM MatchDetail")
-
     rows = cur.fetchall()
-
     conn.close()
-
     return rows
 
 
 @app.get("/MatchScore/")
 def read_matchscore():
-
     conn = get_conn()
     cur = conn.cursor()
-
     cur.execute("SELECT * FROM MatchScore")
-
     rows = cur.fetchall()
-
     conn.close()
-
     return rows
 
 
 @app.get("/users")
 @app.get("/Users/")
 def read_users():
-
     conn = get_conn()
     cur = conn.cursor()
 
@@ -122,7 +103,6 @@ def read_users():
     """)
 
     users = cur.fetchall()
-
     conn.close()
 
     return users
@@ -130,16 +110,11 @@ def read_users():
 
 @app.get("/MatchType/")
 def read_matchtype():
-
     conn = get_conn()
     cur = conn.cursor()
-
     cur.execute("SELECT * FROM MatchType")
-
     rows = cur.fetchall()
-
     conn.close()
-
     return rows
 
 
@@ -153,7 +128,7 @@ def read_match_livescore(match_id: int):
 
     cur.execute("""
         SELECT 
-            MatchHeaderID,
+            MatchID as MatchHeaderID,
             HomeTeamPoint,
             HomeGame,
             HomeSet,
@@ -161,7 +136,7 @@ def read_match_livescore(match_id: int):
             AwayGame,
             AwaySet
         FROM MatchesScoreActual
-        WHERE MatchHeaderID = %s
+        WHERE MatchID = %s
     """, (match_id,))
 
     row = cur.fetchone()
@@ -203,7 +178,6 @@ def insert_matchheader(data: MatchCreate):
         match_id = cur.lastrowid
 
         for index, user_id in enumerate(data.players, start=1):
-
             cur.execute("""
                 INSERT INTO MatchPlayers
                 (MatchHeaderID, PlayerNumber, PlayerID, Timestamp)
@@ -220,15 +194,13 @@ def insert_matchheader(data: MatchCreate):
     except Exception as e:
 
         conn.rollback()
-
         return {"error": str(e)}
 
     finally:
-
         conn.close()
 
 
-# ---------- POINT INSERT ----------
+# ---------- POINTS ----------
 
 @app.post("/InsertPointPadelHome/")
 def insert_home():
@@ -237,21 +209,15 @@ def insert_home():
     cur = conn.cursor()
 
     try:
-
         cur.callproc("SP_InsertIntoMatchDetailPadel_Home")
-
         conn.commit()
-
         return {"status": "ok"}
 
     except Exception as e:
-
         conn.rollback()
-
         return {"error": str(e)}
 
     finally:
-
         conn.close()
 
 
@@ -262,21 +228,15 @@ def insert_away():
     cur = conn.cursor()
 
     try:
-
         cur.callproc("SP_InsertIntoMatchDetailPadel_Away")
-
         conn.commit()
-
         return {"status": "ok"}
 
     except Exception as e:
-
         conn.rollback()
-
         return {"error": str(e)}
 
     finally:
-
         conn.close()
 
 
@@ -289,25 +249,19 @@ def delete_home():
     cur = conn.cursor()
 
     try:
-
         cur.callproc("SP_DeleteIntoMatchDetailPoint")
-
         conn.commit()
-
         return {"status": "ok"}
 
     except Exception as e:
-
         conn.rollback()
-
         return {"error": str(e)}
 
     finally:
-
         conn.close()
 
 
-# ---------- FLIC BUTTON WEBHOOKS ----------
+# ---------- FLIC BUTTONS ----------
 
 @app.post("/flic-webhook_Home/")
 async def flic_webhook_home(request: Request):
@@ -323,7 +277,6 @@ async def flic_webhook_home(request: Request):
             return {"error": "No button id"}
 
         cur.callproc("SP_InsertIntoMatchDetailPadel_Home", (button_id,))
-
         conn.commit()
 
         return {"status": "ok"}
@@ -331,11 +284,9 @@ async def flic_webhook_home(request: Request):
     except Exception as e:
 
         conn.rollback()
-
         return {"error": str(e)}
 
     finally:
-
         conn.close()
 
 
@@ -353,7 +304,6 @@ async def flic_webhook_away(request: Request):
             return {"error": "No button id"}
 
         cur.callproc("SP_InsertIntoMatchDetailPadel_Away", (button_id,))
-
         conn.commit()
 
         return {"status": "ok"}
@@ -361,9 +311,7 @@ async def flic_webhook_away(request: Request):
     except Exception as e:
 
         conn.rollback()
-
         return {"error": str(e)}
 
     finally:
-
         conn.close()
