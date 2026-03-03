@@ -5,7 +5,6 @@ from typing import List
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
-
 app = FastAPI()
 
 app.add_middleware(
@@ -35,7 +34,7 @@ class MatchCreate(BaseModel):
     match_gamemode_id: int
     players: List[int]
 
-# ---------- USERS (Padel page) ----------
+# ---------- USERS ----------
 
 @app.get("/users")
 def get_users():
@@ -45,9 +44,9 @@ def get_users():
 
     cur.execute("""
         SELECT
-            ID as id,
-            Navn as name,
-            NULL as avatar
+        ID as id,
+        Navn as name,
+        NULL as avatar
         FROM Users
     """)
 
@@ -72,7 +71,6 @@ def read_matchtype():
     conn.close()
 
     return rows
-
 
 # ---------- CREATE MATCH ----------
 
@@ -111,11 +109,15 @@ def insert_matchheader(data: MatchCreate):
 
         cur.execute("""
             INSERT INTO MatchScoreActual
-            (MatchHeaderID,HomeTeamPoint,HomeGame,HomeSet,
-             AwayTeamPoint,AwayGame,AwaySet)
+            (MatchHeaderID,
+            HomeTeamPoint,
+            HomeGame,
+            HomeSet,
+            AwayTeamPoint,
+            AwayGame,
+            AwaySet)
             VALUES (%s,0,0,0,0,0,0)
         """,(match_id,))
-
 
         conn.commit()
 
@@ -133,7 +135,6 @@ def insert_matchheader(data: MatchCreate):
     finally:
 
         conn.close()
-
 
 # ---------- LIVESCORE ----------
 
@@ -162,8 +163,7 @@ def read_match_livescore(match_id:int):
 
     return rows
 
-
-# ---------- PADDEL BUTTONS ----------
+# ---------- PADDEL POINTS ----------
 
 @app.post("/InsertPointPadelHome/")
 def insert_home_point():
@@ -213,7 +213,6 @@ def insert_away_point():
     finally:
 
         conn.close()
-
 
 # ---------- FLIC WEBHOOKS ----------
 
