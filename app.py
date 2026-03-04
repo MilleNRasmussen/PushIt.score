@@ -236,7 +236,7 @@ def get_match_players(match_id: int):
         SELECT mp.PlayerNumber, u.Navn
         FROM MatchPlayers mp
         JOIN Users u ON u.ID = mp.PlayerID
-        WHERE mp.MatchHeaderID = %s
+        WHERE mp.MatchID = %s
         ORDER BY mp.PlayerNumber
     """, (match_id,))
 
