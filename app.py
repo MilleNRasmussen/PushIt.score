@@ -224,6 +224,28 @@ def insert_matchheader(data: MatchCreate):
         conn.close()
 
 
+
+
+@app.get("/MatchPlayers/{match_id}")
+def get_match_players(match_id: int):
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT mp.PlayerNumber, u.Navn
+        FROM MatchPlayers mp
+        JOIN Users u ON u.ID = mp.PlayerID
+        WHERE mp.MatchHeaderID = %s
+        ORDER BY mp.PlayerNumber
+    """, (match_id,))
+
+    players = cur.fetchall()
+
+    conn.close()
+
+    return players
+
 # ---------- POINTS ----------
 
 @app.post("/InsertPointPadelHome/")
