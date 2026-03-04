@@ -204,7 +204,7 @@ def insert_matchheader(data: MatchCreate):
         for index, user_id in enumerate(data.players, start=1):
             cur.execute("""
                 INSERT INTO MatchPlayers
-                (MatchHeaderID, PlayerNumber, PlayerID, Timestamp)
+                (MatchID, PlayerNumber, PlayerID, Timestamp)
                 VALUES (%s, %s, %s, NOW())
             """, (match_id, index, user_id))
 
