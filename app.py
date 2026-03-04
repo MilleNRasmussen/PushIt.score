@@ -144,24 +144,28 @@ def read_match_livescore(match_id: int):
         LIMIT 1
     """, (match_id,))
 
-    row = cur.fetchone()
+    score = cur.fetchone()
+
+    cur.execute("""
+        SELECT mp.PlayerNumber, u.Navn
+        FROM MatchPlayers mp
+        JOIN Users u ON u.ID = mp.PlayerID
+        WHERE mp.MatchID = %s
+        ORDER BY mp.PlayerNumber
+    """, (match_id,))
+
+    players = cur.fetchall()
 
     conn.close()
 
-    if not row:
-        return {
-            "MatchHeaderID": match_id,
-            "HomeTeamPoint": 0,
-            "HomeGame": 0,
-            "HomeSet": 0,
-            "AwayTeamPoint": 0,
-            "AwayGame": 0,
-            "AwaySet": 0
-        }
+    home = [p["Navn"] for p in players if p["PlayerNumber"] in (1,2)]
+    away = [p["Navn"] for p in players if p["PlayerNumber"] in (3,4)]
 
-    return row
-
-
+    return {
+        "score": score,
+        "homePlayers": home,
+        "awayPlayers": away
+    }
 
 
 
