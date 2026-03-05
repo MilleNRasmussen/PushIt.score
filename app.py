@@ -49,22 +49,20 @@ def read_users():
 
     cur.execute("""
         SELECT
-        ID as id,
-        Navn as name,
-        NULL as avatar
+            ID as id,
+            Navn as name,
+            NULL as avatar
         FROM Users
     """)
 
     users = cur.fetchall()
-
     conn.close()
 
     return users
 
-
-# ---------- MATCH HEADER ----------
+# ---------- CREATE MATCH ----------
 @app.post("/MatchHeaderInsert/")
-async def MatchHeaderInsert(data: MatchCreate):
+async def match_header_insert(data: MatchCreate):
 
     conn = get_conn()
     cursor = conn.cursor()
@@ -83,14 +81,8 @@ async def MatchHeaderInsert(data: MatchCreate):
 
         for index, user_id in enumerate(data.players, start=1):
 
-            # 1v1
             if len(data.players) == 2:
-                if index == 1:
-                    player_number = 1
-                else:
-                    player_number = 3
-
-            # 2v2
+                player_number = 1 if index == 1 else 3
             else:
                 player_number = index
 
@@ -109,13 +101,11 @@ async def MatchHeaderInsert(data: MatchCreate):
     except Exception as e:
 
         conn.rollback()
-
         return {"error": str(e)}
 
     finally:
 
         conn.close()
-
 
 # ---------- LIVESCORE ----------
 @app.get("/MatchLivescore/{match_id}")
