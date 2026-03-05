@@ -59,10 +59,12 @@ def read_matchheader():
 def read_gamemode():
     conn = get_conn()
     cur = conn.cursor()
+
     cur.execute("""
         SELECT ID, Value, TournamentTypeID AS Tournament_TypeID
         FROM TournamentGameMode
     """)
+
     rows = cur.fetchall()
     conn.close()
     return rows
@@ -93,6 +95,7 @@ def read_matchscore():
 def read_users():
     conn = get_conn()
     cur = conn.cursor()
+
     cur.execute("""
         SELECT
         ID as id,
@@ -100,8 +103,10 @@ def read_users():
         NULL as avatar
         FROM Users
     """)
+
     users = cur.fetchall()
     conn.close()
+
     return users
 
 
@@ -109,9 +114,12 @@ def read_users():
 def read_matchtype():
     conn = get_conn()
     cur = conn.cursor()
+
     cur.execute("SELECT * FROM MatchType")
+
     rows = cur.fetchall()
     conn.close()
+
     return rows
 
 # ---------- LIVESCORE ----------
@@ -123,7 +131,7 @@ def read_match_livescore(match_id: int):
     cur = conn.cursor()
 
     cur.execute("""
-        SELECT 
+        SELECT
             MatchHeaderID,
             HomeTeamPoint,
             HomeGame,
@@ -184,30 +192,31 @@ def insert_matchheader(data: MatchCreate):
     try:
 
         cur.execute("""
-            INSERT INTO MatchHeader (TableID, Timestamp, MatchTypeID, MatchGamemodeID)
+            INSERT INTO MatchHeader
+            (TableID, Timestamp, MatchTypeID, MatchGamemodeID)
             VALUES (1, NOW(), %s, %s)
         """, (data.match_type_id, data.match_gamemode_id))
 
         match_id = cur.lastrowid
 
-     for index, user_id in enumerate(data.players, start=1):
+        for index, user_id in enumerate(data.players, start=1):
 
-    # 1v1
-    if len(data.players) == 2:
-        if index == 1:
-            player_number = 1   # Home
-        else:
-            player_number = 3   # Away
+            # 1v1
+            if len(data.players) == 2:
+                if index == 1:
+                    player_number = 1
+                else:
+                    player_number = 3
 
-    # 2v2
-    else:
-        player_number = index
+            # 2v2
+            else:
+                player_number = index
 
-    cur.execute("""
-        INSERT INTO MatchPlayers
-        (MatchID, PlayerNumber, PlayerID, Timestamp)
-        VALUES (%s, %s, %s, NOW())
-    """, (match_id, player_number, user_id))
+            cur.execute("""
+                INSERT INTO MatchPlayers
+                (MatchID, PlayerNumber, PlayerID, Timestamp)
+                VALUES (%s, %s, %s, NOW())
+            """, (match_id, player_number, user_id))
 
         conn.commit()
 
@@ -242,7 +251,6 @@ def get_match_players(match_id: int):
     """, (match_id,))
 
     players = cur.fetchall()
-
     conn.close()
 
     return players
