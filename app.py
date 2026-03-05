@@ -8,7 +8,6 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI()
 
 # ---------- CORS ----------
-
 origins = [
     "https://pushit.games",
     "https://www.pushit.games",
@@ -24,7 +23,6 @@ app.add_middleware(
 )
 
 # ---------- DATABASE ----------
-
 def get_conn():
     return pymysql.connect(
         host=os.environ["MYSQLHOST"],
@@ -37,57 +35,12 @@ def get_conn():
     )
 
 # ---------- MODELS ----------
-
 class MatchCreate(BaseModel):
     match_type_id: int
     match_gamemode_id: int
     players: List[int]
 
-# ---------- GET ----------
-
-@app.get("/MatchHeader/")
-def read_matchheader():
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM MatchHeader")
-    rows = cur.fetchall()
-    conn.close()
-    return rows
-
-
-@app.get("/Gamemode/")
-def read_gamemode():
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT ID, Value, TournamentTypeID AS Tournament_TypeID
-        FROM TournamentGameMode
-    """)
-    rows = cur.fetchall()
-    conn.close()
-    return rows
-
-
-@app.get("/MatchDetail/")
-def read_matchdetail():
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM MatchDetail")
-    rows = cur.fetchall()
-    conn.close()
-    return rows
-
-
-@app.get("/MatchScore/")
-def read_matchscore():
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM MatchScore")
-    rows = cur.fetchall()
-    conn.close()
-    return rows
-
-
+# ---------- USERS ----------
 @app.get("/users")
 @app.get("/Users/")
 def read_users():
@@ -103,27 +56,68 @@ def read_users():
     """)
 
     users = cur.fetchall()
+
     conn.close()
 
     return users
 
 
-@app.get("/MatchType/")
-def read_matchtype():
+# ---------- MATCH HEADER ----------
+@app.post("/MatchHeaderInsert/")
+async def MatchHeaderInsert(data: MatchCreate):
+
     conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM MatchType")
-    rows = cur.fetchall()
-    conn.close()
-    return rows
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute(
+            """
+            INSERT INTO MatchHeader (MatchTypeId, MatchGameModeId)
+            VALUES (%s, %s)
+            """,
+            (data.match_type_id, data.match_gamemode_id)
+        )
+
+        match_id = cursor.lastrowid
+
+        for index, user_id in enumerate(data.players, start=1):
+
+            # 1v1
+            if len(data.players) == 2:
+                if index == 1:
+                    player_number = 1
+                else:
+                    player_number = 3
+
+            # 2v2
+            else:
+                player_number = index
+
+            cursor.execute(
+                """
+                INSERT INTO MatchPlayers (MatchID, PlayerID, PlayerNumber)
+                VALUES (%s, %s, %s)
+                """,
+                (match_id, user_id, player_number)
+            )
+
+        conn.commit()
+
+        return {"match_id": match_id}
+
+    except Exception as e:
+
+        conn.rollback()
+
+        return {"error": str(e)}
+
+    finally:
+
+        conn.close()
 
 
 # ---------- LIVESCORE ----------
-
-
-
-
-
 @app.get("/MatchLivescore/{match_id}")
 def read_match_livescore(match_id: int):
 
@@ -166,216 +160,3 @@ def read_match_livescore(match_id: int):
         "homePlayers": home,
         "awayPlayers": away
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# ---------- CREATE MATCH ----------
-
-@router.post("/MatchHeaderInsert/")
-async def MatchHeaderInsert(data: MatchHeaderInsert):
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    # Opret match header
-    cursor.execute(
-        """
-        INSERT INTO MatchHeader (MatchTypeId, MatchGameModeId)
-        VALUES (%s, %s)
-        RETURNING MatchId
-        """,
-        (data.match_type_id, data.match_gamemode_id)
-    )
-
-    match_id = cursor.fetchone()[0]
-
-    # Indsæt spillere
-    for index, user_id in enumerate(data.players, start=1):
-
-        # 1v1 kamp
-        if len(data.players) == 2:
-            if index == 1:
-                player_number = 1   # Home
-            else:
-                player_number = 3   # Away
-
-        # 2v2 kamp
-        else:
-            player_number = index
-
-        cursor.execute(
-            """
-            INSERT INTO MatchPlayer (MatchId, UserId, PlayerNumber)
-            VALUES (%s, %s, %s)
-            """,
-            (match_id, user_id, player_number)
-        )
-
-    conn.commit()
-
-    return {
-        "match_id": match_id
-    }
-
-    except Exception as e:
-
-        conn.rollback()
-        return {"error": str(e)}
-
-    finally:
-        conn.close()
-
-
-
-
-@app.get("/MatchPlayers/{match_id}")
-def get_match_players(match_id: int):
-
-    conn = get_conn()
-    cur = conn.cursor()
-
-    cur.execute("""
-        SELECT mp.PlayerNumber, u.Navn
-        FROM MatchPlayers mp
-        JOIN Users u ON u.ID = mp.PlayerID
-        WHERE mp.MatchID = %s
-        ORDER BY mp.PlayerNumber
-    """, (match_id,))
-
-    players = cur.fetchall()
-
-    conn.close()
-
-    return players
-
-# ---------- POINTS ----------
-
-@app.post("/InsertPointPadelHome/")
-def insert_home():
-
-    conn = get_conn()
-    cur = conn.cursor()
-
-    try:
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Home")
-        conn.commit()
-        return {"status": "ok"}
-
-    except Exception as e:
-        conn.rollback()
-        return {"error": str(e)}
-
-    finally:
-        conn.close()
-
-
-@app.post("/InsertPointPadelAway/")
-def insert_away():
-
-    conn = get_conn()
-    cur = conn.cursor()
-
-    try:
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Away")
-        conn.commit()
-        return {"status": "ok"}
-
-    except Exception as e:
-        conn.rollback()
-        return {"error": str(e)}
-
-    finally:
-        conn.close()
-
-
-# ---------- DELETE POINT ----------
-
-@app.post("/DeletePointTest/")
-def delete_home():
-
-    conn = get_conn()
-    cur = conn.cursor()
-
-    try:
-        cur.callproc("SP_DeleteIntoMatchDetailPoint")
-        conn.commit()
-        return {"status": "ok"}
-
-    except Exception as e:
-        conn.rollback()
-        return {"error": str(e)}
-
-    finally:
-        conn.close()
-
-
-# ---------- FLIC BUTTONS ----------
-
-@app.post("/flic-webhook_Home/")
-async def flic_webhook_home(request: Request):
-
-    conn = get_conn()
-    cur = conn.cursor()
-
-    try:
-
-        button_id = request.headers.get("button-serial-number")
-
-        if not button_id:
-            return {"error": "No button id"}
-
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Home", (button_id,))
-        conn.commit()
-
-        return {"status": "ok"}
-
-    except Exception as e:
-
-        conn.rollback()
-        return {"error": str(e)}
-
-    finally:
-        conn.close()
-
-
-@app.post("/flic-webhook_Away/")
-async def flic_webhook_away(request: Request):
-
-    conn = get_conn()
-    cur = conn.cursor()
-
-    try:
-
-        button_id = request.headers.get("button-serial-number")
-
-        if not button_id:
-            return {"error": "No button id"}
-
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Away", (button_id,))
-        conn.commit()
-
-        return {"status": "ok"}
-
-    except Exception as e:
-
-        conn.rollback()
-        return {"error": str(e)}
-
-    finally:
-        conn.close()
