@@ -101,7 +101,7 @@ def read_users():
         ID as id,
         Navn as name,
         NULL as avatar,
-        IF(FlicID IS NULL, 0, 1) as has_flic
+        IF(ButtonID IS NULL, 0, 1) as has_flic
         FROM Users
     """)
 
