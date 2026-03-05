@@ -187,51 +187,51 @@ def read_match_livescore(match_id: int):
 
 # ---------- CREATE MATCH ----------
 
-@app.post("/MatchHeaderInsert/")
-def insert_matchheader(data: MatchCreate):
+@router.post("/MatchHeaderInsert/")
+async def MatchHeaderInsert(data: MatchHeaderInsert):
 
-    if len(data.players) < 2:
-        return {"error": "Der skal vælges mindst 2 spillere"}
+    conn = get_connection()
+    cursor = conn.cursor()
 
-    conn = get_conn()
-    cur = conn.cursor()
-
-    try:
-
-        cur.execute("""
-            INSERT INTO MatchHeader (TableID, Timestamp, MatchTypeID, MatchGamemodeID)
-            VALUES (1, NOW(), %s, %s)
-        """, (data.match_type_id, data.match_gamemode_id))
-
-        match_id = cur.lastrowid
-
-      for index, user_id in enumerate(data.players, start=1):
-
-    # 1v1 match
-    if len(data.players) == 2:
-        if index == 1:
-            player_number = 1   # Home
-        else:
-            player_number = 3   # Away
-
-    # 2v2 match
-    else:
-        player_number = index
-
+    # Opret match header
     cursor.execute(
         """
-        INSERT INTO MatchPlayer (MatchId, UserId, PlayerNumber)
-        VALUES (%s, %s, %s)
+        INSERT INTO MatchHeader (MatchTypeId, MatchGameModeId)
+        VALUES (%s, %s)
+        RETURNING MatchId
         """,
-        (match_id, user_id, player_number)
+        (data.match_type_id, data.match_gamemode_id)
     )
 
-        conn.commit()
+    match_id = cursor.fetchone()[0]
 
-        return {
-            "status": "ok",
-            "match_id": match_id
-        }
+    # Indsæt spillere
+    for index, user_id in enumerate(data.players, start=1):
+
+        # 1v1 kamp
+        if len(data.players) == 2:
+            if index == 1:
+                player_number = 1   # Home
+            else:
+                player_number = 3   # Away
+
+        # 2v2 kamp
+        else:
+            player_number = index
+
+        cursor.execute(
+            """
+            INSERT INTO MatchPlayer (MatchId, UserId, PlayerNumber)
+            VALUES (%s, %s, %s)
+            """,
+            (match_id, user_id, player_number)
+        )
+
+    conn.commit()
+
+    return {
+        "match_id": match_id
+    }
 
     except Exception as e:
 
