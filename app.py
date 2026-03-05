@@ -71,11 +71,12 @@ async def match_header_insert(data: MatchCreate):
 
         cursor.execute(
             """
-            INSERT INTO MatchHeader (MatchTypeId, MatchGameModeId)
-            VALUES (%s, %s)
+            INSERT INTO MatchHeader (MatchTypeId, MatchGameModeId, TableID)
+            VALUES (%s,%s,%s)
             """,
-            (data.match_type_id, data.match_gamemode_id)
+            (data.match_type_id, data.match_gamemode_id, 1)
         )
+        
 
         match_id = cursor.lastrowid
 
