@@ -190,13 +190,24 @@ def insert_matchheader(data: MatchCreate):
 
         match_id = cur.lastrowid
 
-        for index, user_id in enumerate(data.players, start=1):
+     for index, user_id in enumerate(data.players, start=1):
 
-            cur.execute("""
-                INSERT INTO MatchPlayers
-                (MatchID, PlayerNumber, PlayerID, Timestamp)
-                VALUES (%s, %s, %s, NOW())
-            """, (match_id, index, user_id))
+    # 1v1
+    if len(data.players) == 2:
+        if index == 1:
+            player_number = 1   # Home
+        else:
+            player_number = 3   # Away
+
+    # 2v2
+    else:
+        player_number = index
+
+    cur.execute("""
+        INSERT INTO MatchPlayers
+        (MatchID, PlayerNumber, PlayerID, Timestamp)
+        VALUES (%s, %s, %s, NOW())
+    """, (match_id, player_number, user_id))
 
         conn.commit()
 
