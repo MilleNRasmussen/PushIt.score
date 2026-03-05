@@ -101,10 +101,7 @@ def read_users():
         ID as id,
         Navn as name,
         NULL as avatar,
-        CASE
-          WHEN FlicID IS NULL THEN false
-          ELSE true
-        END as has_flic
+        IF(FlicID IS NULL, 0, 1) as has_flic
         FROM Users
     """)
 
