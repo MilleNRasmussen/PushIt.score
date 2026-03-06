@@ -194,8 +194,8 @@ def insert_matchheader(data: MatchCreate):
 
         cur.execute("""
             INSERT INTO MatchHeader
-            (TableID, Timestamp, MatchTypeID, MatchGamemodeID,StartedAt)
-            VALUES (1, NOW(), %s, %s,NOW())
+            (TableID, `Timestamp`, MatchTypeID, MatchGamemodeID,StartedAt,Status)
+            VALUES (1, NOW(), %s, %s,NOW(),'Live')
         """, (data.match_type_id, data.match_gamemode_id))
 
         match_id = cur.lastrowid
