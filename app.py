@@ -4,11 +4,11 @@ from fastapi import FastAPI, Request
 from typing import List
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from apscheduler.schedulers.background import BackgroundScheduler
 
 app = FastAPI()
 
 # ---------- CORS ----------
-
 origins = [
     "https://pushit.games",
     "https://www.pushit.games",
@@ -24,7 +24,6 @@ app.add_middleware(
 )
 
 # ---------- DATABASE ----------
-
 def get_conn():
     return pymysql.connect(
         host=os.environ["MYSQLHOST"],
@@ -37,14 +36,39 @@ def get_conn():
     )
 
 # ---------- MODELS ----------
-
 class MatchCreate(BaseModel):
     match_type_id: int
     match_gamemode_id: int
     players: List[int]
 
-# ---------- GET ----------
+# ---------- AUTO PAUSE JOB ----------
+def pause_inactive_matches():
 
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+
+        cur.execute("""
+            UPDATE MatchHeader mh
+            SET Status='System paused'
+            WHERE Status='Live'
+            AND COALESCE(
+                (
+                    SELECT MAX(md.Timestamp)
+                    FROM MatchDetail md
+                    WHERE md.MatchHeaderID = mh.ID
+                ),
+                mh.StartedAt
+            ) < NOW() - INTERVAL 10 MINUTE
+        """)
+
+        conn.commit()
+
+    finally:
+        conn.close()
+
+# ---------- GET ----------
 @app.get("/MatchHeader/")
 def read_matchheader():
     conn = get_conn()
@@ -54,21 +78,17 @@ def read_matchheader():
     conn.close()
     return rows
 
-
 @app.get("/Gamemode/")
 def read_gamemode():
     conn = get_conn()
     cur = conn.cursor()
-
     cur.execute("""
         SELECT ID, Value, TournamentTypeID AS Tournament_TypeID
         FROM TournamentGameMode
     """)
-
     rows = cur.fetchall()
     conn.close()
     return rows
-
 
 @app.get("/MatchDetail/")
 def read_matchdetail():
@@ -79,7 +99,6 @@ def read_matchdetail():
     conn.close()
     return rows
 
-
 @app.get("/MatchScore/")
 def read_matchscore():
     conn = get_conn()
@@ -88,7 +107,6 @@ def read_matchscore():
     rows = cur.fetchall()
     conn.close()
     return rows
-
 
 @app.get("/users")
 @app.get("/Users/")
@@ -107,24 +125,18 @@ def read_users():
 
     users = cur.fetchall()
     conn.close()
-
     return users
-
 
 @app.get("/MatchType/")
 def read_matchtype():
     conn = get_conn()
     cur = conn.cursor()
-
     cur.execute("SELECT * FROM MatchType")
-
     rows = cur.fetchall()
     conn.close()
-
     return rows
 
 # ---------- LIVESCORE ----------
-
 @app.get("/MatchLivescore/{match_id}")
 def read_match_livescore(match_id: int):
 
@@ -180,7 +192,6 @@ def read_match_livescore(match_id: int):
     }
 
 # ---------- CREATE MATCH ----------
-
 @app.post("/MatchHeaderInsert/")
 def insert_matchheader(data: MatchCreate):
 
@@ -194,22 +205,16 @@ def insert_matchheader(data: MatchCreate):
 
         cur.execute("""
             INSERT INTO MatchHeader
-            (TableID, `Timestamp`, MatchTypeID, MatchGamemodeID,StartedAt,Status)
-            VALUES (1, NOW(), %s, %s,NOW(),'Live')
+            (TableID, `Timestamp`, MatchTypeID, MatchGamemodeID, StartedAt, Status)
+            VALUES (1, NOW(), %s, %s, NOW(), 'Live')
         """, (data.match_type_id, data.match_gamemode_id))
 
         match_id = cur.lastrowid
 
         for index, user_id in enumerate(data.players, start=1):
 
-            # 1v1
             if len(data.players) == 2:
-                if index == 1:
-                    player_number = 1
-                else:
-                    player_number = 3
-
-            # 2v2
+                player_number = 1 if index == 1 else 3
             else:
                 player_number = index
 
@@ -227,16 +232,13 @@ def insert_matchheader(data: MatchCreate):
         }
 
     except Exception as e:
-
         conn.rollback()
         return {"error": str(e)}
 
     finally:
-
         conn.close()
 
 # ---------- MATCH PLAYERS ----------
-
 @app.get("/MatchPlayers/{match_id}")
 def get_match_players(match_id: int):
 
@@ -252,12 +254,12 @@ def get_match_players(match_id: int):
     """, (match_id,))
 
     players = cur.fetchall()
+
     conn.close()
 
     return players
 
 # ---------- POINTS ----------
-
 @app.post("/InsertPointPadelHome/")
 def insert_home():
 
@@ -265,17 +267,20 @@ def insert_home():
     cur = conn.cursor()
 
     try:
+
         cur.callproc("SP_InsertIntoMatchDetailPadel_Home")
+
         conn.commit()
+
         return {"status": "ok"}
 
     except Exception as e:
+
         conn.rollback()
         return {"error": str(e)}
 
     finally:
         conn.close()
-
 
 @app.post("/InsertPointPadelAway/")
 def insert_away():
@@ -284,11 +289,15 @@ def insert_away():
     cur = conn.cursor()
 
     try:
+
         cur.callproc("SP_InsertIntoMatchDetailPadel_Away")
+
         conn.commit()
+
         return {"status": "ok"}
 
     except Exception as e:
+
         conn.rollback()
         return {"error": str(e)}
 
@@ -296,7 +305,6 @@ def insert_away():
         conn.close()
 
 # ---------- DELETE POINT ----------
-
 @app.post("/DeletePointTest/")
 def delete_home():
 
@@ -304,11 +312,15 @@ def delete_home():
     cur = conn.cursor()
 
     try:
+
         cur.callproc("SP_DeleteIntoMatchDetailPoint")
+
         conn.commit()
+
         return {"status": "ok"}
 
     except Exception as e:
+
         conn.rollback()
         return {"error": str(e)}
 
@@ -316,7 +328,6 @@ def delete_home():
         conn.close()
 
 # ---------- FLIC BUTTONS ----------
-
 @app.post("/flic-webhook_Home/")
 async def flic_webhook_home(request: Request):
 
@@ -331,6 +342,7 @@ async def flic_webhook_home(request: Request):
             return {"error": "No button id"}
 
         cur.callproc("SP_InsertIntoMatchDetailPadel_Home", (button_id,))
+
         conn.commit()
 
         return {"status": "ok"}
@@ -341,9 +353,7 @@ async def flic_webhook_home(request: Request):
         return {"error": str(e)}
 
     finally:
-
         conn.close()
-
 
 @app.post("/flic-webhook_Away/")
 async def flic_webhook_away(request: Request):
@@ -359,6 +369,7 @@ async def flic_webhook_away(request: Request):
             return {"error": "No button id"}
 
         cur.callproc("SP_InsertIntoMatchDetailPadel_Away", (button_id,))
+
         conn.commit()
 
         return {"status": "ok"}
@@ -369,5 +380,9 @@ async def flic_webhook_away(request: Request):
         return {"error": str(e)}
 
     finally:
-
         conn.close()
+
+# ---------- START SCHEDULER ----------
+scheduler = BackgroundScheduler()
+scheduler.add_job(pause_inactive_matches, "interval", minutes=1)
+scheduler.start()
