@@ -58,14 +58,19 @@ def pause_inactive_matches():
 
         cur.execute("""
             UPDATE MatchHeader mh
-            SET Status='System paused'
-            WHERE Status='Live'
+
+            LEFT JOIN (
+                SELECT MatchHeaderID, MAX(Timestamp) AS LastPoint
+                FROM MatchDetail
+                GROUP BY MatchHeaderID
+            ) md ON md.MatchHeaderID = mh.ID
+
+            SET mh.Status='SystemPaused'
+
+            WHERE mh.Status='Live'
+
             AND COALESCE(
-                (
-                    SELECT MAX(md.Timestamp)
-                    FROM MatchDetail md
-                    WHERE md.MatchHeaderID = mh.ID
-                ),
+                md.LastPoint,
                 mh.StartedAt
             ) < NOW() - INTERVAL 10 MINUTE
         """)
