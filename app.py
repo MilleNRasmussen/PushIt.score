@@ -100,7 +100,7 @@ def read_users():
         SELECT
         ID as id,
         Navn as name,
-        NULL as avatar,
+        CONCAT('/avatars/', Avatar) as avatar,
         IF(ButtonID IS NULL, 0, 1) as has_flic
         FROM Users
     """)
