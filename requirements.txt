@@ -1,3 +1,5 @@
 fastapi
 uvicorn[standard]
 pymysql
+APScheduler==3.10.4
+
