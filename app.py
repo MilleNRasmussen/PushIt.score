@@ -51,6 +51,8 @@ class MatchCreate(BaseModel):
 # ---------- AUTO PAUSE JOB ----------
 def pause_inactive_matches():
 
+    print("Paused matches:", cur.rowcount)
+    
     conn = get_conn()
     cur = conn.cursor()
 
