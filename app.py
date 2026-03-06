@@ -382,6 +382,13 @@ async def flic_webhook_away(request: Request):
     finally:
         conn.close()
 
+
+# =====================================================
+# BACKGROUND SCHEDULER
+# Automatically pauses inactive matches after 10 minutes
+# Runs every 1 minute
+# =====================================================
+
 # ---------- START SCHEDULER ----------
 scheduler = BackgroundScheduler()
 scheduler.add_job(pause_inactive_matches, "interval", minutes=1)
