@@ -41,6 +41,13 @@ class MatchCreate(BaseModel):
     match_gamemode_id: int
     players: List[int]
 
+
+
+# =====================================================
+# BACKGROUND SCHEDULER
+# Automatically pauses inactive matches after 10 minutes
+# Runs every 1 minute
+# =====================================================
 # ---------- AUTO PAUSE JOB ----------
 def pause_inactive_matches():
 
