@@ -146,10 +146,10 @@ def read_matchtype():
     conn.close()
     return rows
 
+
 # ---------- LIVESCORE ----------
 @app.get("/MatchLivescore/{match_id}")
 def read_match_livescore(match_id: int):
-
     conn = get_conn()
     cur = conn.cursor()
 
@@ -166,8 +166,17 @@ def read_match_livescore(match_id: int):
         WHERE MatchHeaderID = %s
         LIMIT 1
     """, (match_id,))
-
     score = cur.fetchone()
+
+    # HENT MATCH STATUS
+    cur.execute("""
+        SELECT Status
+        FROM MatchHeader
+        WHERE ID = %s
+        LIMIT 1
+    """, (match_id,))
+    row = cur.fetchone()
+    status = row["Status"] if row else "Live"
 
     cur.execute("""
         SELECT mp.PlayerNumber, u.Navn
@@ -176,7 +185,6 @@ def read_match_livescore(match_id: int):
         WHERE mp.MatchID = %s
         ORDER BY mp.PlayerNumber
     """, (match_id,))
-
     players = cur.fetchall()
 
     conn.close()
@@ -197,9 +205,13 @@ def read_match_livescore(match_id: int):
 
     return {
         "score": score,
+        "status": status,
         "homePlayers": home,
         "awayPlayers": away
     }
+
+
+
 
 # ---------- CREATE MATCH ----------
 @app.post("/MatchHeaderInsert/")
