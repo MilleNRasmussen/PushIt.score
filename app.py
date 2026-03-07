@@ -328,21 +328,22 @@ def insert_away():
 
 # ---------- DELETE POINT ----------
 @app.post("/DeleteLastPoint/")
-def delete_home():
-
+async def delete_last_point(request: Request):
     conn = get_conn()
     cur = conn.cursor()
 
     try:
+        button_id = request.headers.get("button-serial-number")
 
-        cur.callproc("SP_DeleteLastPointPadel")
+        if not button_id:
+            return {"error": "No button id"}
 
+        cur.callproc("SP_DeleteLastPointPadel", (button_id,))
         conn.commit()
 
         return {"status": "ok"}
 
     except Exception as e:
-
         conn.rollback()
         return {"error": str(e)}
 
