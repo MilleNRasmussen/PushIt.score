@@ -51,32 +51,27 @@ class MatchCreate(BaseModel):
 # ---------- AUTO PAUSE JOB ----------
 def pause_inactive_matches():
 
-    print("Paused matches:", cur.rowcount)
-    
     conn = get_conn()
     cur = conn.cursor()
 
     try:
-
         cur.execute("""
             UPDATE MatchHeader mh
-
             LEFT JOIN (
                 SELECT HeaderID, MAX(Timestamp) AS LastPoint
                 FROM MatchDetail
                 GROUP BY HeaderID
             ) md ON md.HeaderID = mh.ID
-
             SET mh.Status='SystemPaused',
                 PausedAt = NOW()
-
             WHERE mh.Status='Live'
-
             AND COALESCE(
                 md.LastPoint,
                 mh.StartedAt
             ) < NOW() - INTERVAL 10 MINUTE
         """)
+
+        print("Paused matches:", cur.rowcount)
 
         conn.commit()
 
