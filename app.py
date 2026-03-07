@@ -169,6 +169,22 @@ def read_match_livescore(match_id: int):
 
     score = cur.fetchone()
 
+
+
+   # STATUS
+        cur.execute("""
+        SELECT Status
+        FROM MatchHeader
+        WHERE ID = %s
+        """, (match_id,))
+
+        row = cur.fetchone()
+        status = row["Status"] if row else "Live"
+
+
+
+    
+
     cur.execute("""
         SELECT mp.PlayerNumber, u.Navn
         FROM MatchPlayers mp
