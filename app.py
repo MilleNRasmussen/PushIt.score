@@ -327,7 +327,7 @@ def insert_away():
         conn.close()
 
 # ---------- DELETE POINT ----------
-@app.post("/DeleteLastPointPadel/")
+@app.post("/DeleteLastPoint/")
 def delete_home():
 
     conn = get_conn()
