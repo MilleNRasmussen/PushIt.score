@@ -68,7 +68,7 @@ def pause_inactive_matches():
             AND COALESCE(
                 md.LastPoint,
                 mh.StartedAt
-            ) < NOW() - INTERVAL 10 MINUTE
+            ) < NOW() - INTERVAL 20 MINUTE
         """)
 
         print("Paused matches:", cur.rowcount)
