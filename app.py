@@ -67,7 +67,8 @@ def pause_inactive_matches():
                 GROUP BY HeaderID
             ) md ON md.HeaderID = mh.ID
 
-            SET mh.Status='SystemPaused'
+            SET mh.Status='SystemPaused',
+                PausedAt = NOW()
 
             WHERE mh.Status='Live'
 
