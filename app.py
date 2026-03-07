@@ -161,7 +161,8 @@ def read_match_livescore(match_id: int):
             HomeSet,
             AwayTeamPoint,
             AwayGame,
-            AwaySet
+            AwaySet,
+            Status
         FROM MatchesScoreActual
         WHERE MatchHeaderID = %s
         LIMIT 1
