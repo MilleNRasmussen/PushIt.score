@@ -327,7 +327,7 @@ def insert_away():
         conn.close()
 
 # ---------- DELETE POINT ----------
-@app.post("/DeletePointTest/")
+@app.post("/DeleteLastPointPadel/")
 def delete_home():
 
     conn = get_conn()
@@ -335,7 +335,7 @@ def delete_home():
 
     try:
 
-        cur.callproc("SP_DeleteIntoMatchDetailPoint")
+        cur.callproc("SP_DeleteLastPointPadel")
 
         conn.commit()
 
