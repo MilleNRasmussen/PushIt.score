@@ -462,9 +462,15 @@ def close_finished_matches():
 
 
 # ---------- START SCHEDULER ----------
+
 scheduler = BackgroundScheduler()
+
+# pause kampe uden aktivitet
 scheduler.add_job(pause_inactive_matches, "interval", minutes=1)
+
+# luk finished matches efter 2 min
 scheduler.add_job(close_finished_matches, "interval", minutes=1)
+
 scheduler.start()
 
 
