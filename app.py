@@ -42,15 +42,15 @@ class MatchCreate(BaseModel):
     players: List[int]
 
 # =====================================================
-# BACKGROUND SCHEDULER
-# Automatically pauses inactive matches
+# AUTO PAUSE JOB
 # =====================================================
-
 def pause_inactive_matches():
+
     conn = get_conn()
     cur = conn.cursor()
 
     try:
+
         cur.execute("""
             UPDATE MatchHeader mh
             LEFT JOIN (
@@ -171,6 +171,7 @@ def read_matchtype():
 
     return rows
 
+
 # ---------- LIVESCORE ----------
 @app.get("/MatchLivescore/{match_id}")
 def read_match_livescore(match_id: int):
@@ -202,7 +203,6 @@ def read_match_livescore(match_id: int):
     """, (match_id,))
 
     row = cur.fetchone()
-
     status = row["Status"] if row else "Live"
 
     cur.execute("""
@@ -281,46 +281,62 @@ def insert_matchheader(data: MatchCreate):
     except Exception as e:
 
         conn.rollback()
-
         return {"error": str(e)}
 
     finally:
-
         conn.close()
 
-# ---------- CLOSE MATCH ----------
-@app.post("/CloseMatch/{match_id}")
-def close_match(match_id: int):
+# ---------- CLOSE MATCH FROM BUTTON ----------
+@app.post("/flic-close-match/")
+async def flic_close_match(request: Request):
 
     conn = get_conn()
     cur = conn.cursor()
 
     try:
 
+        button_id = request.headers.get("button-serial-number")
+
+        if not button_id:
+            return {"error": "No button id"}
+
+        cur.execute("""
+            SELECT mh.ID
+            FROM MatchHeader mh
+            JOIN MatchDetail md ON md.HeaderID = mh.ID
+            WHERE md.ButtonID = %s
+            AND mh.Status = 'Live'
+            ORDER BY md.Timestamp DESC
+            LIMIT 1
+        """, (button_id,))
+
+        row = cur.fetchone()
+
+        if not row:
+            return {"error": "No active match"}
+
+        match_id = row["ID"]
+
         cur.execute("""
             UPDATE MatchHeader
             SET Status = 'Closed',
                 ClosedAt = NOW()
             WHERE ID = %s
-            AND Status != 'Closed'
         """, (match_id,))
 
         conn.commit()
 
         return {
             "status": "closed",
-            "match_id": match_id,
-            "rows_updated": cur.rowcount
+            "match_id": match_id
         }
 
     except Exception as e:
 
         conn.rollback()
-
         return {"error": str(e)}
 
     finally:
-
         conn.close()
 
 # ---------- MATCH PLAYERS ----------
@@ -344,6 +360,7 @@ def get_match_players(match_id: int):
 
     return players
 
+
 # ---------- POINTS ----------
 @app.post("/InsertPointPadelHome/")
 def insert_home():
@@ -362,11 +379,9 @@ def insert_home():
     except Exception as e:
 
         conn.rollback()
-
         return {"error": str(e)}
 
     finally:
-
         conn.close()
 
 
@@ -387,12 +402,11 @@ def insert_away():
     except Exception as e:
 
         conn.rollback()
-
         return {"error": str(e)}
 
     finally:
-
         conn.close()
+
 
 # ---------- DELETE POINT ----------
 @app.post("/DeleteLastPoint/")
@@ -417,12 +431,11 @@ async def delete_last_point(request: Request):
     except Exception as e:
 
         conn.rollback()
-
         return {"error": str(e)}
 
     finally:
-
         conn.close()
+
 
 # ---------- FLIC BUTTONS ----------
 @app.post("/flic-webhook_Home/")
@@ -447,11 +460,9 @@ async def flic_webhook_home(request: Request):
     except Exception as e:
 
         conn.rollback()
-
         return {"error": str(e)}
 
     finally:
-
         conn.close()
 
 
@@ -477,12 +488,11 @@ async def flic_webhook_away(request: Request):
     except Exception as e:
 
         conn.rollback()
-
         return {"error": str(e)}
 
     finally:
-
         conn.close()
+
 
 # ---------- START SCHEDULER ----------
 scheduler = BackgroundScheduler()
