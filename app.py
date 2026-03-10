@@ -392,7 +392,9 @@ async def delete_last_point(request: Request):
         conn.close()
 
 
+
 # ---------- FLIC BUTTONS ----------
+
 @app.post("/flic-webhook_Home/")
 async def flic_webhook_home(request: Request):
 
@@ -400,12 +402,15 @@ async def flic_webhook_home(request: Request):
     cur = conn.cursor()
 
     try:
+        button_id = request.headers.get("button-serial-number")
 
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Home")
+        if not button_id:
+            return {"error": "No button id"}
 
+        cur.callproc("SP_InsertIntoMatchDetailPadel_Home", (button_id,))
         conn.commit()
 
-        return {"status": "ok"}
+        return {"status": "ok", "button": button_id}
 
     except Exception as e:
 
@@ -423,12 +428,15 @@ async def flic_webhook_away(request: Request):
     cur = conn.cursor()
 
     try:
+        button_id = request.headers.get("button-serial-number")
 
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Away")
+        if not button_id:
+            return {"error": "No button id"}
 
+        cur.callproc("SP_InsertIntoMatchDetailPadel_Away", (button_id,))
         conn.commit()
 
-        return {"status": "ok"}
+        return {"status": "ok", "button": button_id}
 
     except Exception as e:
 
@@ -437,7 +445,6 @@ async def flic_webhook_away(request: Request):
 
     finally:
         conn.close()
-
 
 
 # ---------- Closed finished matched  ----------
