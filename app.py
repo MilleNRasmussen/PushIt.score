@@ -439,7 +439,32 @@ async def flic_webhook_away(request: Request):
         conn.close()
 
 
+
+# ---------- Closed finished matched  ----------
+
+def close_finished_matches():
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            UPDATE MatchHeader
+            SET Status = 'Closed',
+                FinishedAt = NOW()
+            WHERE Status = 'FinishedPending'
+            AND PausedAt IS NULL
+            AND StartedAt < NOW() - INTERVAL 2 MINUTE
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+
+
 # ---------- START SCHEDULER ----------
 scheduler = BackgroundScheduler()
 scheduler.add_job(pause_inactive_matches, "interval", minutes=1)
+scheduler.add_job(close_finished_matches, "interval", minutes=1)
 scheduler.start()
+
+
