@@ -273,7 +273,7 @@ async def close_match_from_button(request: Request):
         cur.execute("""
             SELECT ID
             FROM MatchHeader
-            WHERE Status='Live'
+            WHERE Status IN ('Live','FinishedPending')
             ORDER BY StartedAt DESC
             LIMIT 1
         """)
