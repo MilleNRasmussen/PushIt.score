@@ -32,7 +32,8 @@ def get_conn():
         database=os.environ["MYSQLDATABASE"],
         port=int(os.environ["MYSQLPORT"]),
         cursorclass=pymysql.cursors.DictCursor,
-        autocommit=False
+        autocommit=False,
+        charset="utf8mb4"
     )
 
 # ---------- MODELS ----------
