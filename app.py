@@ -50,7 +50,6 @@ def pause_inactive_matches():
     cur = conn.cursor()
 
     try:
-
         cur.execute("""
             UPDATE MatchHeader mh
             LEFT JOIN (
@@ -61,14 +60,10 @@ def pause_inactive_matches():
             SET mh.Status='SystemPaused',
                 PausedAt = NOW()
             WHERE mh.Status='Live'
-            AND COALESCE(
-                md.LastPoint,
-                mh.StartedAt
-            ) < NOW() - INTERVAL 20 MINUTE
+            AND COALESCE(md.LastPoint, mh.StartedAt) < NOW() - INTERVAL 20 MINUTE
         """)
 
         print("Paused matches:", cur.rowcount)
-
         conn.commit()
 
     finally:
@@ -77,21 +72,16 @@ def pause_inactive_matches():
 # ---------- GET ----------
 @app.get("/MatchHeader/")
 def read_matchheader():
-
     conn = get_conn()
     cur = conn.cursor()
-
     cur.execute("SELECT * FROM MatchHeader")
     rows = cur.fetchall()
-
     conn.close()
-
     return rows
 
 
 @app.get("/Gamemode/")
 def read_gamemode():
-
     conn = get_conn()
     cur = conn.cursor()
 
@@ -101,44 +91,33 @@ def read_gamemode():
     """)
 
     rows = cur.fetchall()
-
     conn.close()
-
     return rows
 
 
 @app.get("/MatchDetail/")
 def read_matchdetail():
-
     conn = get_conn()
     cur = conn.cursor()
-
     cur.execute("SELECT * FROM MatchDetail")
     rows = cur.fetchall()
-
     conn.close()
-
     return rows
 
 
 @app.get("/MatchScore/")
 def read_matchscore():
-
     conn = get_conn()
     cur = conn.cursor()
-
     cur.execute("SELECT * FROM MatchScore")
     rows = cur.fetchall()
-
     conn.close()
-
     return rows
 
 
 @app.get("/users")
 @app.get("/Users/")
 def read_users():
-
     conn = get_conn()
     cur = conn.cursor()
 
@@ -152,23 +131,17 @@ def read_users():
     """)
 
     users = cur.fetchall()
-
     conn.close()
-
     return users
 
 
 @app.get("/MatchType/")
 def read_matchtype():
-
     conn = get_conn()
     cur = conn.cursor()
-
     cur.execute("SELECT * FROM MatchType")
     rows = cur.fetchall()
-
     conn.close()
-
     return rows
 
 
@@ -214,7 +187,6 @@ def read_match_livescore(match_id: int):
     """, (match_id,))
 
     players = cur.fetchall()
-
     conn.close()
 
     if not score:
@@ -228,8 +200,8 @@ def read_match_livescore(match_id: int):
             "AwaySet": 0
         }
 
-    home = [p["Navn"] for p in players if p["PlayerNumber"] in (1, 2)]
-    away = [p["Navn"] for p in players if p["PlayerNumber"] in (3, 4)]
+    home = [p["Navn"] for p in players if p["PlayerNumber"] in (1,2)]
+    away = [p["Navn"] for p in players if p["PlayerNumber"] in (3,4)]
 
     return {
         "score": score,
@@ -237,6 +209,7 @@ def read_match_livescore(match_id: int):
         "homePlayers": home,
         "awayPlayers": away
     }
+
 
 # ---------- CREATE MATCH ----------
 @app.post("/MatchHeaderInsert/")
@@ -249,7 +222,6 @@ def insert_matchheader(data: MatchCreate):
     cur = conn.cursor()
 
     try:
-
         cur.execute("""
             INSERT INTO MatchHeader
             (TableID, `Timestamp`, MatchTypeID, MatchGamemodeID, StartedAt, Status)
@@ -273,22 +245,19 @@ def insert_matchheader(data: MatchCreate):
 
         conn.commit()
 
-        return {
-            "status": "ok",
-            "match_id": match_id
-        }
+        return {"status": "ok", "match_id": match_id}
 
     except Exception as e:
-
         conn.rollback()
         return {"error": str(e)}
 
     finally:
         conn.close()
 
+
 # ---------- CLOSE MATCH FROM BUTTON ----------
 @app.post("/flic-close-match/")
-async def flic_close_match(request: Request):
+async def close_match_from_button(request: Request):
 
     conn = get_conn()
     cur = conn.cursor()
@@ -301,14 +270,12 @@ async def flic_close_match(request: Request):
             return {"error": "No button id"}
 
         cur.execute("""
-            SELECT mh.ID
-            FROM MatchHeader mh
-            JOIN MatchDetail md ON md.HeaderID = mh.ID
-            WHERE md.ButtonID = %s
-            AND mh.Status = 'Live'
-            ORDER BY md.Timestamp DESC
+            SELECT ID
+            FROM MatchHeader
+            WHERE Status='Live'
+            ORDER BY StartedAt DESC
             LIMIT 1
-        """, (button_id,))
+        """)
 
         row = cur.fetchone()
 
@@ -319,17 +286,14 @@ async def flic_close_match(request: Request):
 
         cur.execute("""
             UPDATE MatchHeader
-            SET Status = 'Closed',
+            SET Status='Closed',
                 ClosedAt = NOW()
-            WHERE ID = %s
+            WHERE ID=%s
         """, (match_id,))
 
         conn.commit()
 
-        return {
-            "status": "closed",
-            "match_id": match_id
-        }
+        return {"status": "closed", "match_id": match_id}
 
     except Exception as e:
 
@@ -338,6 +302,7 @@ async def flic_close_match(request: Request):
 
     finally:
         conn.close()
+
 
 # ---------- MATCH PLAYERS ----------
 @app.get("/MatchPlayers/{match_id}")
@@ -355,7 +320,6 @@ def get_match_players(match_id: int):
     """, (match_id,))
 
     players = cur.fetchall()
-
     conn.close()
 
     return players
@@ -369,15 +333,11 @@ def insert_home():
     cur = conn.cursor()
 
     try:
-
         cur.callproc("SP_InsertIntoMatchDetailPadel_Home")
-
         conn.commit()
-
         return {"status": "ok"}
 
     except Exception as e:
-
         conn.rollback()
         return {"error": str(e)}
 
@@ -392,15 +352,11 @@ def insert_away():
     cur = conn.cursor()
 
     try:
-
         cur.callproc("SP_InsertIntoMatchDetailPadel_Away")
-
         conn.commit()
-
         return {"status": "ok"}
 
     except Exception as e:
-
         conn.rollback()
         return {"error": str(e)}
 
@@ -423,7 +379,6 @@ async def delete_last_point(request: Request):
             return {"error": "No button id"}
 
         cur.callproc("SP_DeleteLastPointPadel", (button_id,))
-
         conn.commit()
 
         return {"status": "ok"}
@@ -446,12 +401,7 @@ async def flic_webhook_home(request: Request):
 
     try:
 
-        button_id = request.headers.get("button-serial-number")
-
-        if not button_id:
-            return {"error": "No button id"}
-
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Home", (button_id,))
+        cur.callproc("SP_InsertIntoMatchDetailPadel_Home")
 
         conn.commit()
 
@@ -474,12 +424,7 @@ async def flic_webhook_away(request: Request):
 
     try:
 
-        button_id = request.headers.get("button-serial-number")
-
-        if not button_id:
-            return {"error": "No button id"}
-
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Away", (button_id,))
+        cur.callproc("SP_InsertIntoMatchDetailPadel_Away")
 
         conn.commit()
 
