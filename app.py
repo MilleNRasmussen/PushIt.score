@@ -49,7 +49,7 @@ class MatchCreate(BaseModel):
     players: List[int]
 
 # =====================================================
-# SSE EVENT STREAM (STABIL VERSION)
+# SSE EVENT STREAM
 # =====================================================
 
 @app.get("/flic-events")
@@ -70,10 +70,19 @@ async def flic_events():
 
 
 def broadcast_flic(button_id):
-
     for queue in clients:
         queue.put_nowait({
+            "type": "pairing",
             "flic_id": button_id
+        })
+
+
+def broadcast_known(button_id, name):
+    for queue in clients:
+        queue.put_nowait({
+            "type": "known",
+            "flic_id": button_id,
+            "name": name
         })
 
 # =====================================================
@@ -81,7 +90,6 @@ def broadcast_flic(button_id):
 # =====================================================
 
 def pause_inactive_matches():
-
     conn = get_conn()
     cur = conn.cursor()
 
@@ -108,7 +116,6 @@ def pause_inactive_matches():
         conn.close()
 
 # ---------- USERS ----------
-
 @app.get("/users")
 @app.get("/Users/")
 def read_users():
@@ -131,8 +138,9 @@ def read_users():
 
     return users
 
-
-# ---------- UPDATE USER ----------
+# =====================================================
+# UPDATE USER (PAIR FLIC)
+# =====================================================
 
 class UserUpdate(BaseModel):
     name: str | None = None
@@ -148,21 +156,18 @@ async def update_user(user_id: int, data: UserUpdate):
 
     try:
 
-        # opdater navn
         if data.name is not None:
             cur.execute(
                 "UPDATE Users SET Navn=%s WHERE ID=%s",
                 (data.name, user_id)
             )
 
-        # fjern flic
         if data.has_flic == 0:
             cur.execute(
                 "UPDATE Users SET ButtonID=NULL WHERE ID=%s",
                 (user_id,)
             )
 
-        # assign flic
         if data.button_id:
             cur.execute(
                 "UPDATE Users SET ButtonID=%s WHERE ID=%s",
@@ -182,10 +187,6 @@ async def update_user(user_id: int, data: UserUpdate):
 
         conn.close()
 
-
-
-
-
 # =====================================================
 # FLIC BUTTONS
 # =====================================================
@@ -203,12 +204,28 @@ async def flic_webhook_home(request: Request):
         if not button_id:
             return {"error": "No button id"}
 
+        # find spiller
+        cur.execute("""
+            SELECT Navn
+            FROM Users
+            WHERE ButtonID = %s
+        """, (button_id,))
+
+        user = cur.fetchone()
+
+        # hvis knappen ikke findes → pairing modal
+        if not user:
+            broadcast_flic(button_id)
+            return {"status": "pairing"}
+
+        # knappen findes → vis hvem den tilhører
+        broadcast_known(button_id, user["Navn"])
+
+        # registrer point
         cur.callproc("SP_InsertIntoMatchDetailPadel_Home", (button_id,))
         conn.commit()
 
-        broadcast_flic(button_id)
-
-        return {"status": "ok", "button": button_id}
+        return {"status": "point"}
 
     except Exception as e:
 
@@ -233,12 +250,24 @@ async def flic_webhook_away(request: Request):
         if not button_id:
             return {"error": "No button id"}
 
+        cur.execute("""
+            SELECT Navn
+            FROM Users
+            WHERE ButtonID = %s
+        """, (button_id,))
+
+        user = cur.fetchone()
+
+        if not user:
+            broadcast_flic(button_id)
+            return {"status": "pairing"}
+
+        broadcast_known(button_id, user["Navn"])
+
         cur.callproc("SP_InsertIntoMatchDetailPadel_Away", (button_id,))
         conn.commit()
 
-        broadcast_flic(button_id)
-
-        return {"status": "ok", "button": button_id}
+        return {"status": "point"}
 
     except Exception as e:
 
@@ -254,7 +283,5 @@ async def flic_webhook_away(request: Request):
 # =====================================================
 
 scheduler = BackgroundScheduler()
-
 scheduler.add_job(pause_inactive_matches, "interval", minutes=1)
-
 scheduler.start()
