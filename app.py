@@ -131,6 +131,61 @@ def read_users():
 
     return users
 
+
+# ---------- UPDATE USER ----------
+
+class UserUpdate(BaseModel):
+    name: str | None = None
+    has_flic: int | None = None
+    button_id: str | None = None
+
+
+@app.put("/users/{user_id}")
+async def update_user(user_id: int, data: UserUpdate):
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+
+        # opdater navn
+        if data.name is not None:
+            cur.execute(
+                "UPDATE Users SET Navn=%s WHERE ID=%s",
+                (data.name, user_id)
+            )
+
+        # fjern flic
+        if data.has_flic == 0:
+            cur.execute(
+                "UPDATE Users SET ButtonID=NULL WHERE ID=%s",
+                (user_id,)
+            )
+
+        # assign flic
+        if data.button_id:
+            cur.execute(
+                "UPDATE Users SET ButtonID=%s WHERE ID=%s",
+                (data.button_id, user_id)
+            )
+
+        conn.commit()
+
+        return {"status": "ok"}
+
+    except Exception as e:
+
+        conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+
+        conn.close()
+
+
+
+
+
 # =====================================================
 # FLIC BUTTONS
 # =====================================================
