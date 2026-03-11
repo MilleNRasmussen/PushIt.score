@@ -323,5 +323,17 @@ async def flic_webhook_away(request: Request):
 # =====================================================
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(pause_inactive_matches, "interval", minutes=1)
+
+scheduler.add_job(
+    pause_inactive_matches,
+    "interval",
+    minutes=1
+)
+
+scheduler.add_job(
+    close_finished_matches,
+    "interval",
+    minutes=1
+)
+
 scheduler.start()
