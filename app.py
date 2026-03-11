@@ -30,7 +30,6 @@ app.add_middleware(
 )
 
 # ---------- DATABASE ----------
-
 def get_conn():
     return pymysql.connect(
         host=os.environ["MYSQLHOST"],
@@ -44,33 +43,26 @@ def get_conn():
     )
 
 # ---------- MODELS ----------
-
 class MatchCreate(BaseModel):
     match_type_id: int
     match_gamemode_id: int
     players: List[int]
 
 # =====================================================
-# SSE EVENT STREAM
+# SSE EVENT STREAM (STABIL VERSION)
 # =====================================================
 
 @app.get("/flic-events")
 async def flic_events():
 
-    async def event_generator():
-        queue = []
-        clients.append(queue)
+    queue = asyncio.Queue()
+    clients.append(queue)
 
+    async def event_generator():
         try:
             while True:
-
-                if queue:
-                    data = queue.pop(0)
-                    yield f"data: {json.dumps(data)}\n\n"
-
-                # vigtig pause så serveren ikke låser
-                await asyncio.sleep(0.2)
-
+                data = await queue.get()
+                yield f"data: {json.dumps(data)}\n\n"
         finally:
             clients.remove(queue)
 
@@ -79,8 +71,8 @@ async def flic_events():
 
 def broadcast_flic(button_id):
 
-    for client in clients:
-        client.append({
+    for queue in clients:
+        queue.put_nowait({
             "flic_id": button_id
         })
 
@@ -89,6 +81,7 @@ def broadcast_flic(button_id):
 # =====================================================
 
 def pause_inactive_matches():
+
     conn = get_conn()
     cur = conn.cursor()
 
@@ -114,7 +107,6 @@ def pause_inactive_matches():
     finally:
         conn.close()
 
-
 # ---------- USERS ----------
 
 @app.get("/users")
@@ -139,8 +131,9 @@ def read_users():
 
     return users
 
-
-# ---------- FLIC BUTTONS ----------
+# =====================================================
+# FLIC BUTTONS
+# =====================================================
 
 @app.post("/flic-webhook_Home/")
 async def flic_webhook_home(request: Request):
@@ -156,7 +149,6 @@ async def flic_webhook_home(request: Request):
             return {"error": "No button id"}
 
         cur.callproc("SP_InsertIntoMatchDetailPadel_Home", (button_id,))
-
         conn.commit()
 
         broadcast_flic(button_id)
@@ -166,7 +158,6 @@ async def flic_webhook_home(request: Request):
     except Exception as e:
 
         conn.rollback()
-
         return {"error": str(e)}
 
     finally:
@@ -188,7 +179,6 @@ async def flic_webhook_away(request: Request):
             return {"error": "No button id"}
 
         cur.callproc("SP_InsertIntoMatchDetailPadel_Away", (button_id,))
-
         conn.commit()
 
         broadcast_flic(button_id)
@@ -198,13 +188,11 @@ async def flic_webhook_away(request: Request):
     except Exception as e:
 
         conn.rollback()
-
         return {"error": str(e)}
 
     finally:
 
         conn.close()
-
 
 # =====================================================
 # START SCHEDULER
