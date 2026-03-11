@@ -53,6 +53,7 @@ class UserUpdate(BaseModel):
     has_flic: int | None = None
     button_id: str | None = None
 
+
 # =====================================================
 # SSE EVENT STREAM
 # =====================================================
@@ -90,6 +91,7 @@ def broadcast_known(button_id, name):
             "name": name
         })
 
+
 # =====================================================
 # AUTO PAUSE JOB
 # =====================================================
@@ -118,6 +120,16 @@ def pause_inactive_matches():
 
     finally:
         conn.close()
+
+
+# =====================================================
+# CLOSE FINISHED MATCHES
+# (placeholder så scheduler ikke crasher)
+# =====================================================
+
+def close_finished_matches():
+    pass
+
 
 # =====================================================
 # USERS
@@ -162,7 +174,7 @@ async def create_user(
 
         cur.execute(
             "INSERT INTO Users (Navn, Email) VALUES (%s,%s)",
-            (name,email)
+            (name, email)
         )
 
         user_id = cur.lastrowid
@@ -173,12 +185,12 @@ async def create_user(
 
             path = f"avatars/{user_id}.png"
 
-            with open(path,"wb") as f:
+            with open(path, "wb") as f:
                 f.write(await avatar.read())
 
         conn.commit()
 
-        return {"status":"ok"}
+        return {"status": "ok"}
 
     except Exception as e:
 
@@ -230,6 +242,7 @@ async def update_user(user_id: int, data: UserUpdate):
     finally:
 
         conn.close()
+
 
 # =====================================================
 # FLIC BUTTONS
@@ -317,6 +330,7 @@ async def flic_webhook_away(request: Request):
     finally:
 
         conn.close()
+
 
 # =====================================================
 # START SCHEDULER
