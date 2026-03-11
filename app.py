@@ -138,6 +138,41 @@ def read_users():
 
     return users
 
+
+
+# ---------- CREATE USER ----------
+
+class UserCreate(BaseModel):
+    name: str
+    email: str
+
+
+@app.post("/users")
+async def create_user(data: UserCreate):
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+
+        cur.execute("""
+            INSERT INTO Users (Navn, Email)
+            VALUES (%s, %s)
+        """, (data.name, data.email))
+
+        conn.commit()
+
+        return {"status": "created"}
+
+    except Exception as e:
+
+        conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+
+        conn.close()
+
 # =====================================================
 # UPDATE USER (PAIR FLIC)
 # =====================================================
