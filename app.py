@@ -2,39 +2,12 @@ import os
 import pymysql
 import json
 import asyncio
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile, File, Form
 from typing import List
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi.responses import StreamingResponse
-from fastapi import UploadFile, File, Form
-
-@app.post("/users")
-async def create_user(
-    name: str = Form(...),
-    email: str = Form(...),
-    avatar: UploadFile | None = File(None)
-):
-
-    conn = get_conn()
-    cur = conn.cursor()
-
-    cur.execute(
-        "INSERT INTO Users (Navn, Email) VALUES (%s,%s)",
-        (name,email)
-    )
-
-    user_id = cur.lastrowid
-
-    if avatar:
-        path = f"avatars/{user_id}.png"
-        with open(path,"wb") as f:
-            f.write(await avatar.read())
-
-    conn.commit()
-
-    return {"status":"ok"}
 
 app = FastAPI()
 
@@ -74,6 +47,11 @@ class MatchCreate(BaseModel):
     match_type_id: int
     match_gamemode_id: int
     players: List[int]
+
+class UserUpdate(BaseModel):
+    name: str | None = None
+    has_flic: int | None = None
+    button_id: str | None = None
 
 # =====================================================
 # SSE EVENT STREAM
@@ -117,6 +95,7 @@ def broadcast_known(button_id, name):
 # =====================================================
 
 def pause_inactive_matches():
+
     conn = get_conn()
     cur = conn.cursor()
 
@@ -135,14 +114,15 @@ def pause_inactive_matches():
             AND COALESCE(md.LastPoint, mh.StartedAt) < NOW() - INTERVAL 20 MINUTE
         """)
 
-        print("Paused matches:", cur.rowcount)
-
         conn.commit()
 
     finally:
         conn.close()
 
-# ---------- USERS ----------
+# =====================================================
+# USERS
+# =====================================================
+
 @app.get("/users")
 @app.get("/Users/")
 def read_users():
@@ -154,7 +134,7 @@ def read_users():
         SELECT
         ID as id,
         Navn as name,
-        CONCAT('/avatars/', Avatar) as avatar,
+        CONCAT('/avatars/', ID, '.png') as avatar,
         IF(ButtonID IS NULL, 0, 1) as has_flic
         FROM Users
     """)
@@ -166,30 +146,39 @@ def read_users():
     return users
 
 
-
-# ---------- CREATE USER ----------
-
-class UserCreate(BaseModel):
-    name: str
-    email: str
-
+# ---------- CREATE USER + AVATAR ----------
 
 @app.post("/users")
-async def create_user(data: UserCreate):
+async def create_user(
+    name: str = Form(...),
+    email: str = Form(...),
+    avatar: UploadFile | None = File(None)
+):
 
     conn = get_conn()
     cur = conn.cursor()
 
     try:
 
-        cur.execute("""
-            INSERT INTO Users (Navn, Email)
-            VALUES (%s, %s)
-        """, (data.name, data.email))
+        cur.execute(
+            "INSERT INTO Users (Navn, Email) VALUES (%s,%s)",
+            (name,email)
+        )
+
+        user_id = cur.lastrowid
+
+        if avatar:
+
+            os.makedirs("avatars", exist_ok=True)
+
+            path = f"avatars/{user_id}.png"
+
+            with open(path,"wb") as f:
+                f.write(await avatar.read())
 
         conn.commit()
 
-        return {"status": "created"}
+        return {"status":"ok"}
 
     except Exception as e:
 
@@ -200,15 +189,8 @@ async def create_user(data: UserCreate):
 
         conn.close()
 
-# =====================================================
-# UPDATE USER (PAIR FLIC)
-# =====================================================
 
-class UserUpdate(BaseModel):
-    name: str | None = None
-    has_flic: int | None = None
-    button_id: str | None = None
-
+# ---------- UPDATE USER ----------
 
 @app.put("/users/{user_id}")
 async def update_user(user_id: int, data: UserUpdate):
@@ -266,7 +248,6 @@ async def flic_webhook_home(request: Request):
         if not button_id:
             return {"error": "No button id"}
 
-        # find spiller
         cur.execute("""
             SELECT Navn
             FROM Users
@@ -275,15 +256,12 @@ async def flic_webhook_home(request: Request):
 
         user = cur.fetchone()
 
-        # hvis knappen ikke findes → pairing modal
         if not user:
             broadcast_flic(button_id)
             return {"status": "pairing"}
 
-        # knappen findes → vis hvem den tilhører
         broadcast_known(button_id, user["Navn"])
 
-        # registrer point
         cur.callproc("SP_InsertIntoMatchDetailPadel_Home", (button_id,))
         conn.commit()
 
