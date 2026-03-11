@@ -1,6 +1,7 @@
 import os
 import pymysql
 import json
+import asyncio
 from fastapi import FastAPI, Request
 from typing import List
 from pydantic import BaseModel
@@ -62,9 +63,14 @@ async def flic_events():
 
         try:
             while True:
+
                 if queue:
                     data = queue.pop(0)
                     yield f"data: {json.dumps(data)}\n\n"
+
+                # vigtig pause så serveren ikke låser
+                await asyncio.sleep(0.2)
+
         finally:
             clients.remove(queue)
 
@@ -72,11 +78,11 @@ async def flic_events():
 
 
 def broadcast_flic(button_id):
+
     for client in clients:
         client.append({
             "flic_id": button_id
         })
-
 
 # =====================================================
 # AUTO PAUSE JOB
