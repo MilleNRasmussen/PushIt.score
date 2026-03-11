@@ -8,6 +8,33 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi.responses import StreamingResponse
+from fastapi import UploadFile, File, Form
+
+@app.post("/users")
+async def create_user(
+    name: str = Form(...),
+    email: str = Form(...),
+    avatar: UploadFile | None = File(None)
+):
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute(
+        "INSERT INTO Users (Navn, Email) VALUES (%s,%s)",
+        (name,email)
+    )
+
+    user_id = cur.lastrowid
+
+    if avatar:
+        path = f"avatars/{user_id}.png"
+        with open(path,"wb") as f:
+            f.write(await avatar.read())
+
+    conn.commit()
+
+    return {"status":"ok"}
 
 app = FastAPI()
 
