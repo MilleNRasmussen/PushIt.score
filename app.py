@@ -250,13 +250,15 @@ async def update_user(user_id: int, data: UserUpdate):
 # ---------- CREATE MATCH ----------
 @app.post("/MatchHeaderInsert/")
 async def create_match(data: MatchCreate):
+
     conn = get_conn()
     cur = conn.cursor()
 
     try:
+
         cur.execute("""
-            INSERT INTO MatchHeader (TableID, MatchTypeID, MatchGameModeID, Status, StartedAt)
-            VALUES (%s, %s, 'Live', NOW())
+        INSERT INTO MatchHeader (TableID, MatchTypeID, MatchGameModeID, Status, StartedAt)
+        VALUES (%s, %s, %s, 'Live', NOW())
         """, (1, data.match_type_id, data.match_gamemode_id))
 
         match_id = cur.lastrowid
@@ -268,13 +270,12 @@ async def create_match(data: MatchCreate):
                 INSERT INTO MatchPlayers (MatchID, PlayerID, PlayerNumber)
                 VALUES (%s, %s, %s)
             """, (match_id, player_id, player_number))
+
             player_number += 1
 
         conn.commit()
 
-        return {
-            "match_id": match_id
-        }
+        return {"match_id": match_id}
 
     except Exception as e:
         conn.rollback()
