@@ -248,6 +248,7 @@ async def update_user(user_id: int, data: UserUpdate):
 
 @app.get("/MatchLivescore/{match_id}")
 def get_match_livescore(match_id: int):
+    try:
     conn = get_conn()
     cursor = conn.cursor()
 
