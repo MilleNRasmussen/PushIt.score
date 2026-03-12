@@ -244,6 +244,49 @@ async def update_user(user_id: int, data: UserUpdate):
         conn.close()
 
 
+
+
+# ---------- CREATE MATCH ----------
+@app.post("/MatchHeaderInsert/")
+async def create_match(data: MatchCreate):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            INSERT INTO MatchHeader (MatchTypeID, MatchGameModeID, Status, StartedAt)
+            VALUES (%s, %s, 'Live', NOW())
+        """, (data.match_type_id, data.match_gamemode_id))
+
+        match_id = cur.lastrowid
+
+        # indsæt spillere
+        player_number = 1
+        for player_id in data.players:
+            cur.execute("""
+                INSERT INTO MatchPlayers (MatchID, PlayerID, PlayerNumber)
+                VALUES (%s, %s, %s)
+            """, (match_id, player_id, player_number))
+            player_number += 1
+
+        conn.commit()
+
+        return {
+            "match_id": match_id
+        }
+
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
+
+
+
+
+
+
 # ---------- LIVESCORE ----------
 @app.get("/MatchLivescore/{match_id}")
 def read_match_livescore(match_id: int):
