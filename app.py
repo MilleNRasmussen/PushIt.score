@@ -267,10 +267,13 @@ def get_match_livescore(match_id: int):
     score = cursor.fetchone() 
 
     cursor.execute("""
-        SELECT PlayerID, MatchID
-        FROM MatchPlayers
-        WHERE MatchID = %s
-    """, (match_id,))
+    SELECT 
+        u.Navn as PlayerName,
+        mp.Team
+    FROM MatchPlayers mp
+    JOIN Users u ON mp.PlayerID = u.ID
+    WHERE mp.MatchID = %s
+    """, (match_id,))   
 
     players = cursor.fetchall()
 
