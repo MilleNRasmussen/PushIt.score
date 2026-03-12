@@ -276,8 +276,6 @@ def get_match_livescore(match_id: int):
     """, (match_id,))
     players = cursor.fetchall() 
 
-    players = cursor.fetchall()
-
     home_players = [p["PlayerName"] for p in players if p["Team"] == "Home"]
     away_players = [p["PlayerName"] for p in players if p["Team"] == "Away"]
 
