@@ -251,18 +251,19 @@ def get_match_livescore(match_id: int):
     conn = get_conn()
     cursor = conn.cursor()
 
-    cursor.execute("""
-        SELECT 
-            HomeTeamPoint,
-            AwayTeamPoint,
-            HomeGame,
-            AwayGame,
-            HomeSet,
-            AwaySet
-        FROM MatchHeader
-        WHERE ID = %s
-    """, (match_id,))
-
+   cursor.execute("""
+    SELECT 
+        HomeTeamPoint,
+        AwayTeamPoint,
+        HomeGame,
+        AwayGame,
+        HomeSet,
+        AwaySet
+    FROM MatchDetail
+    WHERE HeaderID = %s
+    ORDER BY ID DESC
+    LIMIT 1
+""", (match_id,))
     score = cursor.fetchone()
 
     cursor.execute("""
