@@ -264,7 +264,7 @@ def get_match_livescore(match_id: int):
     ORDER BY ID DESC
     LIMIT 1
 """, (match_id,))
-    score = cursor.fetchone()
+    score = cursor.fetchone() 
 
     cursor.execute("""
         SELECT PlayerName, Team
