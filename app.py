@@ -1,4 +1,4 @@
-import os   
+import os  
 import pymysql
 import json
 import asyncio
