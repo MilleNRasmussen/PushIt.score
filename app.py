@@ -296,6 +296,9 @@ def get_match_livescore(match_id: int):
         "awayPlayers": away_players,
         "status": "Live"
     }
+
+    except Exception as e:
+    return {"error": str(e)}
 # =====================================================
 # FLIC BUTTONS
 # =====================================================
