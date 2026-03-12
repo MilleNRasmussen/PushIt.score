@@ -259,8 +259,8 @@ def get_match_livescore(match_id: int):
         AwayGame,
         HomeSet,
         AwaySet
-    FROM MatchDetail
-    WHERE HeaderID = %s
+    FROM MatchDetailPoint
+    WHERE MatchHeaderID = %s
     ORDER BY ID DESC
     LIMIT 1
     """, (match_id,))
