@@ -267,7 +267,7 @@ def get_match_livescore(match_id: int):
     score = cursor.fetchone() 
 
     cursor.execute("""
-        SELECT PlayerName, Team
+        SELECT PlayerID, MatchID
         FROM MatchPlayers
         WHERE MatchID = %s
     """, (match_id,))
