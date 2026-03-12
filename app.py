@@ -263,7 +263,7 @@ def get_match_livescore(match_id: int):
     WHERE HeaderID = %s
     ORDER BY ID DESC
     LIMIT 1
-""", (match_id,))
+    """, (match_id,))
     score = cursor.fetchone() 
 
     cursor.execute("""
