@@ -246,60 +246,59 @@ async def update_user(user_id: int, data: UserUpdate):
 
 # ---------- LIVESCORE ----------
 @app.get("/MatchLivescore/{match_id}")
-def get_match_livescore(match_id: int):
-    try:
-        conn = get_conn()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-        SELECT 
-        HomeTeamPoint,
-        AwayTeamPoint,
-        HomeGame,
-        AwayGame,
-        HomeSet,
-        AwaySet
-        FROM MatchDetailPoint
+def read_match_livescore(match_id: int):
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT
+            MatchHeaderID,
+            HomeTeamPoint,
+            HomeGame,
+            HomeSet,
+            AwayTeamPoint,
+            AwayGame,
+            AwaySet
+        FROM MatchesScoreActual
         WHERE MatchHeaderID = %s
-        ORDER BY ID DESC
         LIMIT 1
-        """, (match_id,))
-
-        score = cursor.fetchone() or {
+    """, (match_id,))
+    score = cur.fetchone()
+    # HENT MATCH STATUS
+    cur.execute("""
+        SELECT Status
+        FROM MatchHeader
+        WHERE ID = %s
+        LIMIT 1
+    """, (match_id,))
+    row = cur.fetchone()
+    status = row["Status"] if row else "Live"
+    cur.execute("""
+        SELECT mp.PlayerNumber, u.Navn
+        FROM MatchPlayers mp
+        JOIN Users u ON u.ID = mp.PlayerID
+        WHERE mp.MatchID = %s
+        ORDER BY mp.PlayerNumber
+    """, (match_id,))
+    players = cur.fetchall()
+    conn.close()
+    if not score:
+        score = {
+            "MatchHeaderID": match_id,
             "HomeTeamPoint": 0,
-            "AwayTeamPoint": 0,
             "HomeGame": 0,
-            "AwayGame": 0,
             "HomeSet": 0,
+            "AwayTeamPoint": 0,
+            "AwayGame": 0,
             "AwaySet": 0
         }
-
-        cursor.execute("""
-        SELECT 
-           u.Navn as PlayerName,
-           mp.Team
-        FROM MatchPlayers mp
-        JOIN Users u ON mp.PlayerID = u.ID
-        WHERE mp.MatchID = %s
-        """, (match_id,))
-
-        players = cursor.fetchall()
-
-        home_players = [p["PlayerName"] for p in players if p["Team"] == "Home"]
-        away_players = [p["PlayerName"] for p in players if p["Team"] == "Away"]
-
-        cursor.close()
-        conn.close()
-
-        return {
-            "score": score,
-            "homePlayers": home_players,
-            "awayPlayers": away_players,
-            "status": "Live"
-        }
-
-    except Exception as e:
-        return {"error": str(e)}
+    home = [p["Navn"] for p in players if p["PlayerNumber"] in (1, 2)]
+    away = [p["Navn"] for p in players if p["PlayerNumber"] in (3, 4)]
+    return {
+        "score": score,
+        "status": status,
+        "homePlayers": home,
+        "awayPlayers": away
+    }
 # =====================================================
 # FLIC BUTTONS
 # =====================================================
