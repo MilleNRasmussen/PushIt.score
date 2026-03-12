@@ -244,6 +244,47 @@ async def update_user(user_id: int, data: UserUpdate):
         conn.close()
 
 
+# ---------- LIVESCORE ----------
+
+@app.get("/MatchLivescore/{match_id}")
+def get_match_livescore(match_id: int):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT 
+            HomeTeamPoint,
+            AwayTeamPoint,
+            HomeGame,
+            AwayGame,
+            HomeSet,
+            AwaySet
+        FROM MatchHeader
+        WHERE ID = %s
+    """, (match_id,))
+
+    score = cursor.fetchone()
+
+    cursor.execute("""
+        SELECT PlayerName, Team
+        FROM MatchPlayers
+        WHERE MatchID = %s
+    """, (match_id,))
+
+    players = cursor.fetchall()
+
+    home_players = [p["PlayerName"] for p in players if p["Team"] == "Home"]
+    away_players = [p["PlayerName"] for p in players if p["Team"] == "Away"]
+
+    cursor.close()
+    conn.close()
+
+    return {
+        "score": score,
+        "homePlayers": home_players,
+        "awayPlayers": away_players,
+        "status": "Live"
+    }
 # =====================================================
 # FLIC BUTTONS
 # =====================================================
