@@ -251,7 +251,7 @@ def get_match_livescore(match_id: int):
     conn = get_conn()
     cursor = conn.cursor()
 
-   cursor.execute("""
+    cursor.execute("""
     SELECT 
         HomeTeamPoint,
         AwayTeamPoint,
