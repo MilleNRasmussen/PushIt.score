@@ -337,8 +337,15 @@ def read_match_livescore(match_id: int):
             "AwayGame": 0,
             "AwaySet": 0
         }
-    home = [p["Navn"] for p in players if p["PlayerNumber"] in (1, 2)]
-    away = [p["Navn"] for p in players if p["PlayerNumber"] in (3, 4)]
+
+    if len(players) == 2:
+       home = [players[0]["Navn"]]
+       away = [players[1]["Navn"]]
+    else:
+       home = [p["Navn"] for p in players if p["PlayerNumber"] in (1, 2)]
+       away = [p["Navn"] for p in players if p["PlayerNumber"] in (3, 4)]
+
+    
     return {
         "score": score,
         "status": status,
