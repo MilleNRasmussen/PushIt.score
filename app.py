@@ -269,8 +269,8 @@ async def create_match(data: MatchCreate):
         for player_id in data.players:
             cur.execute("""
                 INSERT INTO MatchPlayers (MatchID, PlayerID, PlayerNumber,Timestamp)
-                VALUES (%s, %s, %s)
-            """, (match_id, player_id, player_number,NOW())
+                VALUES (%s, %s, %s,NOW())
+            """, (match_id, player_id, player_number)
 
             player_number += 1
 
