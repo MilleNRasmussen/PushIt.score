@@ -440,6 +440,41 @@ async def flic_webhook_away(request: Request):
         conn.close()
 
 
+
+# ---------- DELETE POINT ----------
+@app.post("/DeleteLastPoint/")
+async def delete_last_point(request: Request):
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+
+        button_id = request.headers.get("button-serial-number")
+
+        if not button_id:
+            return {"error": "No button id"}
+
+        cur.callproc("SP_DeleteLastPointPadel", (button_id,))
+        conn.commit()
+
+        return {"status": "ok"}
+
+    except Exception as e:
+
+        conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
+
+
+
+
+
+
+
+
 # =====================================================
 # START SCHEDULER
 # =====================================================
