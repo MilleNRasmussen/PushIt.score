@@ -363,7 +363,8 @@ async def flic_webhook_home(request: Request):
     cur = conn.cursor()
 
     try:
-
+        data = await request.json() 
+        
         button_id = request.headers.get("button-serial-number")
         click_type = data.get("click_type")
 
@@ -406,6 +407,7 @@ async def flic_webhook_away(request: Request):
     cur = conn.cursor()
 
     try:
+        data = await request.json() 
 
         button_id = request.headers.get("button-serial-number")
         click_type = data.get("click_type")
