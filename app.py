@@ -363,13 +363,14 @@ async def flic_webhook_home(request: Request):
     cur = conn.cursor()
 
     try:
-        data = await request.json() 
+
+        data = await request.json()
+
+        button_id = request.headers.get("button-serial-number")
+        click_type = data.get("click_type")
 
         print("BUTTON:", button_id)
         print("CLICK:", click_type)
-        
-        button_id = request.headers.get("button-serial-number")
-        click_type = data.get("click_type")
 
         if not button_id:
             return {"error": "No button id"}
@@ -388,35 +389,35 @@ async def flic_webhook_home(request: Request):
 
         broadcast_known(button_id, user["Navn"])
 
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Home", (button_id,click_type))
+        cur.callproc(
+            "SP_InsertIntoMatchDetailPadel_Home",
+            (button_id, click_type)
+        )
+
         conn.commit()
 
         return {"status": "point"}
 
     except Exception as e:
-
+        print("ERROR:", e)
         conn.rollback()
         return {"error": str(e)}
 
     finally:
-
         conn.close()
-
 
 @app.post("/flic-webhook_Away/")
 async def flic_webhook_away(request: Request):
-
     conn = get_conn()
     cur = conn.cursor()
-
     try:
-        data = await request.json() 
+        data = await request.json()
+
+        button_id = request.headers.get("button-serial-number")
+        click_type = data.get("click_type")
 
         print("BUTTON:", button_id)
         print("CLICK:", click_type)
-        
-        button_id = request.headers.get("button-serial-number")
-        click_type = data.get("click_type")
 
         if not button_id:
             return {"error": "No button id"}
@@ -435,18 +436,21 @@ async def flic_webhook_away(request: Request):
 
         broadcast_known(button_id, user["Navn"])
 
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Away", (button_id, click_type))
+        cur.callproc(
+            "SP_InsertIntoMatchDetailPadel_Away",
+            (button_id, click_type)
+        )
+
         conn.commit()
 
         return {"status": "point"}
 
     except Exception as e:
-
+        print("ERROR:", e)
         conn.rollback()
         return {"error": str(e)}
 
     finally:
-
         conn.close()
 
 
