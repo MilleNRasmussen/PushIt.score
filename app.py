@@ -365,6 +365,7 @@ async def flic_webhook_home(request: Request):
     try:
 
         button_id = request.headers.get("button-serial-number")
+        click_type = data.get("click_type")
 
         if not button_id:
             return {"error": "No button id"}
@@ -383,7 +384,7 @@ async def flic_webhook_home(request: Request):
 
         broadcast_known(button_id, user["Navn"])
 
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Home", (button_id,))
+        cur.callproc("SP_InsertIntoMatchDetailPadel_Home", (button_id,click_type))
         conn.commit()
 
         return {"status": "point"}
@@ -407,6 +408,7 @@ async def flic_webhook_away(request: Request):
     try:
 
         button_id = request.headers.get("button-serial-number")
+        click_type = data.get("click_type")
 
         if not button_id:
             return {"error": "No button id"}
@@ -425,7 +427,7 @@ async def flic_webhook_away(request: Request):
 
         broadcast_known(button_id, user["Navn"])
 
-        cur.callproc("SP_InsertIntoMatchDetailPadel_Away", (button_id,))
+        cur.callproc("SP_InsertIntoMatchDetailPadel_Away", (button_id, click_type))
         conn.commit()
 
         return {"status": "point"}
