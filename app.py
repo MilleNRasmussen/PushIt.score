@@ -411,13 +411,20 @@ async def flic_webhook_home(request: Request):
 
 @app.post("/flic-webhook_Away/")
 async def flic_webhook_away(request: Request):
+
     conn = get_conn()
     cur = conn.cursor()
+
     try:
-        data = await request.json()
+
+        # Flic sender ofte ingen JSON body
+        try:
+            data = await request.json()
+        except:
+            data = {}
 
         button_id = request.headers.get("button-serial-number")
-        click_type = data.get("click_type")
+        click_type = data.get("click_type", "ButtonSingleClick")
 
         print("BUTTON:", button_id)
         print("CLICK:", click_type)
@@ -455,7 +462,6 @@ async def flic_webhook_away(request: Request):
 
     finally:
         conn.close()
-
 
 
 # ---------- DELETE POINT ----------
