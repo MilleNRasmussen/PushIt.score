@@ -257,6 +257,28 @@ async def create_match(data: MatchCreate):
 
     try:
 
+         # 🔎 check om spillere allerede er i aktiv kamp
+        cur.execute("""
+        SELECT u.Navn
+        FROM MatchPlayers mp
+        JOIN MatchHeader mh ON mh.ID = mp.MatchID
+        JOIN Users u ON u.ID = mp.PlayerID
+        WHERE mp.PlayerID IN %s
+        AND mh.Status IN ('Live','FinishedPending','SystemPaused')
+        """, (tuple(data.players),))
+
+        existing = cur.fetchone()
+
+        if existing:
+            return {
+                "error": f"{existing['Navn']} er allerede registreret i en åben kamp"
+            }
+
+
+
+
+
+        
         cur.execute("""
         INSERT INTO MatchHeader (TableID, MatchTypeID, MatchGameModeID, Status, StartedAt,Timestamp)
         VALUES (%s, %s, %s, 'Live', NOW(),NOW())
