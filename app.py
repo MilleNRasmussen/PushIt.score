@@ -320,9 +320,9 @@ async def create_match(data: MatchCreate):
         existing = cur.fetchone()
 
         if existing:
-            return {
-                "error": f"{existing['Navn']} er allerede registreret i en åben kamp"
-            }
+           return {
+          "error": f"{existing['Navn']} spiller allerede på bane {existing['TableID']} (match {existing['match_id']})"
+         }
 
 
 
