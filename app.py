@@ -160,6 +160,52 @@ def read_users():
     return users
 
 
+
+
+
+
+@app.get("/player-active-match/{player_id}")
+def player_active_match(player_id: int):
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT 
+            u.Navn,
+            mh.ID as match_id,
+            mh.TableID
+        FROM MatchPlayers mp
+        JOIN MatchHeader mh ON mh.ID = mp.MatchID
+        JOIN Users u ON u.ID = mp.PlayerID
+        WHERE mp.PlayerID = %s
+        AND mh.Status IN ('Live','FinishedPending','SystemPaused')
+        LIMIT 1
+    """, (player_id,))
+
+    row = cur.fetchone()
+
+    conn.close()
+
+    if row:
+        return {
+            "active": True,
+            "name": row["Navn"],
+            "match_id": row["match_id"],
+            "table_id": row["TableID"]
+        }
+
+    return {
+        "active": False
+    }
+
+
+
+
+
+
+
+
 # ---------- CREATE USER + AVATAR ----------
 
 @app.post("/users")
