@@ -313,7 +313,7 @@ async def create_match(data: MatchCreate):
         JOIN MatchHeader mh ON mh.ID = mp.MatchID
         JOIN Users u ON u.ID = mp.PlayerID
         WHERE mp.PlayerID IN %s
-        AND mh.Status IN ('Live','FinishedPending','SystemPaused')
+        AND mh.Status IN ('Live','FinishedPending')
         LIMIT 1
         """, (tuple(data.players),))
 
