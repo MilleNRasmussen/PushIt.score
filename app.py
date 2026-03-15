@@ -305,12 +305,16 @@ async def create_match(data: MatchCreate):
 
          # 🔎 check om spillere allerede er i aktiv kamp
         cur.execute("""
-        SELECT u.Navn
+        SELECT 
+               u.Navn,
+               mh.ID AS match_id,
+               mh.TableID
         FROM MatchPlayers mp
         JOIN MatchHeader mh ON mh.ID = mp.MatchID
         JOIN Users u ON u.ID = mp.PlayerID
         WHERE mp.PlayerID IN %s
         AND mh.Status IN ('Live','FinishedPending','SystemPaused')
+        LIMIT 1
         """, (tuple(data.players),))
 
         existing = cur.fetchone()
