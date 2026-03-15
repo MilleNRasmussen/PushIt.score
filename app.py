@@ -179,7 +179,7 @@ def player_active_match(player_id: int):
         JOIN MatchHeader mh ON mh.ID = mp.MatchID
         JOIN Users u ON u.ID = mp.PlayerID
         WHERE mp.PlayerID = %s
-        AND mh.Status IN ('Live','FinishedPending','SystemPaused')
+        AND mh.Status IN ('Live','FinishedPending')
         LIMIT 1
     """, (player_id,))
 
