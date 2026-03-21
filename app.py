@@ -297,13 +297,11 @@ async def update_user(user_id: int, data: UserUpdate):
 # ---------- CREATE MATCH ----------
 @app.post("/MatchHeaderInsert/")
 async def create_match(data: MatchCreate):
-
     conn = get_conn()
     cur = conn.cursor()
 
     try:
-
-         # 🔎 check om spillere allerede er i aktiv kamp
+        # 🔎 check om spillere allerede er i aktiv kamp
         cur.execute("""
         SELECT 
                u.Navn,
@@ -320,19 +318,39 @@ async def create_match(data: MatchCreate):
         existing = cur.fetchone()
 
         if existing:
-           return {
-          "error": f"{existing['Navn']} spiller allerede på bane {existing['TableID']} (match {existing['match_id']})"
-         }
+            return {
+                "error": f"{existing['Navn']} spiller allerede på bane {existing['TableID']} (match {existing['match_id']})"
+            }
 
+        # 🔥 HENT TABLE FRA TOKEN
+        table_id = None
 
+        if data.public_token:
+            cur.execute("""
+                SELECT ID
+                FROM CustomerClub
+                WHERE PublicToken = %s
+                LIMIT 1
+            """, (data.public_token,))
 
+            table = cur.fetchone()
 
+            if not table:
+                return {"error": "Ugyldigt token"}
 
-        
+            table_id = table["ID"]
+
+        # 🔥 INSERT MATCH
         cur.execute("""
-        INSERT INTO MatchHeader (TableID, MatchTypeID, MatchGameModeID, Status, StartedAt,Timestamp)
-        VALUES (%s, %s, %s, 'Live', NOW(),NOW())
-        """, (1, data.match_type_id, data.match_gamemode_id))
+        INSERT INTO MatchHeader 
+            (TableID, MatchTypeID, MatchGameModeID, PublicToken, Status, StartedAt, Timestamp)
+        VALUES (%s, %s, %s, %s, 'Live', NOW(), NOW())
+        """, (
+            table_id,
+            data.match_type_id,
+            data.match_gamemode_id,
+            data.public_token
+        ))
 
         match_id = cur.lastrowid
 
@@ -340,10 +358,9 @@ async def create_match(data: MatchCreate):
         player_number = 1
         for player_id in data.players:
             cur.execute("""
-                INSERT INTO MatchPlayers (MatchID, PlayerID, PlayerNumber,Timestamp)
-                VALUES (%s, %s, %s,NOW())
+                INSERT INTO MatchPlayers (MatchID, PlayerID, PlayerNumber, Timestamp)
+                VALUES (%s, %s, %s, NOW())
             """, (match_id, player_id, player_number))
-
             player_number += 1
 
         conn.commit()
@@ -356,9 +373,6 @@ async def create_match(data: MatchCreate):
 
     finally:
         conn.close()
-
-
-
 
 
 
