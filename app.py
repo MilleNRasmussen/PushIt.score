@@ -550,6 +550,37 @@ async def flic_webhook_away(request: Request):
         conn.close()
 
 
+
+# =====================================================
+# Live token
+# =====================================================
+
+
+@app.get("/live/{token}")
+def get_live_match(token: str):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT ID
+        FROM MatchHeader
+        WHERE PublicToken = %s
+        AND Status = 'Live'
+        ORDER BY ID DESC
+        LIMIT 1
+    """, (token,))
+
+    match = cur.fetchone()
+    conn.close()
+
+    if match:
+        return {"match_id": match["ID"]}
+    
+    return {}
+
+
+
+
 # ---------- DELETE POINT ----------
 @app.post("/DeleteLastPoint/")
 async def delete_last_point(request: Request):
