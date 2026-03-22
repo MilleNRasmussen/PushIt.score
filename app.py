@@ -337,24 +337,34 @@ async def create_match(data: MatchCreate):
             table = cur.fetchone()
 
             if not table:
-                return {"error": "Ugyldigt token"}
+               conn.close()
+               return {"error": "Ugyldigt token"}
+
+            print("TABLE:", table)
+            print("TOKEN:", data.public_token)
 
             table_id = table["ID"]
 
         # 🔥 INSERT MATCH
+
         cur.execute("""
         INSERT INTO MatchHeader 
             (TableID, MatchTypeID, MatchGameModeID, PublicToken, Status, StartedAt, Timestamp)
         VALUES (%s, %s, %s, %s, 'Live', NOW(), NOW())
         """, (
-            table_id,
-            data.match_type_id,
-            data.match_gamemode_id,
-            data.public_token
+           table_id,
+           data.match_type_id,
+           data.match_gamemode_id,
+           data.public_token
         ))
 
         match_id = cur.lastrowid
 
+        if not match_id:
+           conn.rollback()
+           return {"error": "Match blev ikke oprettet"}
+
+     
         # indsæt spillere
         player_number = 1
         for player_id in data.players:
