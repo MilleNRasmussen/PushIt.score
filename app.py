@@ -326,7 +326,9 @@ async def create_match(data: MatchCreate):
         # 🔥 HENT TABLE FRA TOKEN
         table_id = None
 
-        if data.public_token:
+        if not data.public_token:
+            return {"error": "public_token mangler"}
+            
             cur.execute("""
                 SELECT ID
                 FROM CustomerClub
@@ -337,9 +339,8 @@ async def create_match(data: MatchCreate):
             table = cur.fetchone()
 
             if not table:
-               conn.rollback()
-               return {"error": "Ugyldigt token"}
-
+               return {"error": f"Token findes ikke: {data.public_token}"}
+              
             print("TABLE:", table)
             print("TOKEN:", data.public_token)
 
