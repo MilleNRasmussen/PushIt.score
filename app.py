@@ -49,6 +49,7 @@ class MatchCreate(BaseModel):
     match_type_id: int
     match_gamemode_id: int
     players: List[int]
+    public_token: str
 
 class UserUpdate(BaseModel):
     name: str | None = None
