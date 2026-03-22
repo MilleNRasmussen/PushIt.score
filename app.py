@@ -344,6 +344,9 @@ async def create_match(data: MatchCreate):
             print("TOKEN:", data.public_token)
 
             table_id = table["ID"]
+        
+        else:
+        return {"error": "public_token mangler"}
 
         # 🔥 INSERT MATCH
 
