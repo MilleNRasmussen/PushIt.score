@@ -337,7 +337,7 @@ async def create_match(data: MatchCreate):
             table = cur.fetchone()
 
             if not table:
-               conn.close()
+               conn.rollback()
                return {"error": "Ugyldigt token"}
 
             print("TABLE:", table)
