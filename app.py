@@ -300,7 +300,6 @@ async def update_user(user_id: int, data: UserUpdate):
 async def create_match(data: MatchCreate):
     conn = get_conn()
     cur = conn.cursor()
-
     try:
         # 🔎 check om spillere allerede er i aktiv kamp
         cur.execute("""
@@ -315,42 +314,32 @@ async def create_match(data: MatchCreate):
         AND mh.Status IN ('Live','FinishedPending')
         LIMIT 1
         """, (tuple(data.players),))
-
+        
         existing = cur.fetchone()
-
         if existing:
             return {
                 "error": f"{existing['Navn']} spiller allerede på bane {existing['TableID']} (match {existing['match_id']})"
             }
 
-        # 🔥 HENT TABLE FRA TOKEN
-        table_id = None
-
+        # 🔥 HENT TABLE FRA TOKEN (FIXET)
         if not data.public_token:
             return {"error": "public_token mangler"}
-            
-            cur.execute("""
-                SELECT ID
-                FROM CustomerClub
-                WHERE PublicToken = %s
-                LIMIT 1
-            """, (data.public_token,))
 
-            table = cur.fetchone()
-
-            if not table:
-               return {"error": f"Token findes ikke: {data.public_token}"}
-              
-            print("TABLE:", table)
-            print("TOKEN:", data.public_token)
-
-            table_id = table["ID"]
+        cur.execute("""
+            SELECT ID
+            FROM CustomerClub
+            WHERE PublicToken = %s
+            LIMIT 1
+        """, (data.public_token,))
         
-        else:
-           return {"error": "public_token mangler"}
+        table = cur.fetchone()
+
+        if not table:
+            return {"error": f"Token findes ikke: {data.public_token}"}
+
+        table_id = table["ID"]
 
         # 🔥 INSERT MATCH
-
         cur.execute("""
         INSERT INTO MatchHeader 
             (TableID, MatchTypeID, MatchGameModeID, PublicToken, Status, StartedAt, Timestamp)
@@ -365,10 +354,9 @@ async def create_match(data: MatchCreate):
         match_id = cur.lastrowid
 
         if not match_id:
-           conn.rollback()
-           return {"error": "Match blev ikke oprettet"}
+            conn.rollback()
+            return {"error": "Match blev ikke oprettet"}
 
-     
         # indsæt spillere
         player_number = 1
         for player_id in data.players:
@@ -379,7 +367,6 @@ async def create_match(data: MatchCreate):
             player_number += 1
 
         conn.commit()
-
         return {"match_id": match_id}
 
     except Exception as e:
@@ -388,7 +375,6 @@ async def create_match(data: MatchCreate):
 
     finally:
         conn.close()
-
 
 
 # ---------- LIVESCORE ----------
