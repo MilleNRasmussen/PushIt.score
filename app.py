@@ -116,7 +116,7 @@ def pause_inactive_matches():
             SET mh.Status='SystemPaused',
                 PausedAt = NOW()
             WHERE mh.Status='Live'
-            AND COALESCE(md.LastPoint, mh.StartedAt) < NOW() - INTERVAL 10 MINUTE
+            AND COALESCE(md.LastPoint, mh.StartedAt) < NOW() - INTERVAL 2 MINUTE
         """)
 
         conn.commit()
@@ -557,7 +557,7 @@ async def flic_webhook_away(request: Request):
 # =====================================================
 
 
-@app.get("/live/{token}")
+@app.get("/api/live/{token}")
 def get_live_match(token: str):
     conn = get_conn()
     cur = conn.cursor()
