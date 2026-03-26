@@ -563,10 +563,10 @@ def get_live_match(token: str):
     cur = conn.cursor()
 
     cur.execute("""
-        SELECT ID
+        SELECT ID, Status
         FROM MatchHeader
         WHERE PublicToken = %s
-        AND Status = 'Live'
+        AND Status IN ('Live','FinishedPending')
         ORDER BY ID DESC
         LIMIT 1
     """, (token,))
@@ -575,9 +575,14 @@ def get_live_match(token: str):
     conn.close()
 
     if match:
-        return {"match_id": match["ID"]}
+        return {"match_id": match["ID"],
+                "status": match["Status"]
+               }
     
-    return {}
+    return {
+         "match_id": None,
+         "status": None
+    }
 
 
 
