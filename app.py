@@ -690,3 +690,10 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.receive_text()  # keep alive
     except:
         ws_connections.remove(websocket)
+
+
+
+@app.get("/test-event")
+def test_event():
+    broadcast_match_end("ABC")
+    return {"sent": True}
