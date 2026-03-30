@@ -119,6 +119,9 @@ def broadcast_known(button_id, name):
 # MATCH ENDED EVENT (tilføj denne hvis ikke allerede)
 # =====================================================
 def broadcast_match_end(token):
+    print("🔥 BROADCAST CALLED")
+    print("🔥 CLIENT COUNT:", len(clients))
+
     for queue in clients:
         queue.put_nowait({
             "type": "matchEnded",
