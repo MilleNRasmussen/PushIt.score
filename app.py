@@ -74,6 +74,9 @@ clients = []
 async def flic_events():
     queue = asyncio.Queue()
     clients.append(queue)
+    
+    print("🔥 CLIENT CONNECTED")
+    print("🔥 TOTAL CLIENTS:", len(clients))
     print("🔥 INSTANCE ID:", os.getenv("RAILWAY_SERVICE_ID"))
     async def event_generator():
         try:
