@@ -702,7 +702,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
 @app.get("/test-event")
 def test_event():
-    broadcast_match_end("214")
+    broadcast_match_end("217")
 
     print("🔥 INSTANCE ID:", os.getenv("RAILWAY_SERVICE_ID"))
     return {"sent": True}
