@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi.responses import StreamingResponse
 from fastapi.responses import JSONResponse
+from fastapi import WebSocket
 
 app = FastAPI()
 
@@ -61,30 +62,50 @@ class UserUpdate(BaseModel):
 # SSE EVENT STREAM
 # =====================================================
 
+# =====================================================
+# SSE CLIENTS
+# =====================================================
+clients = []
+
+# =====================================================
+# SSE EVENT STREAM (FIXET VERSION)
+# =====================================================
 @app.get("/flic-events")
 async def flic_events():
-
     queue = asyncio.Queue()
     clients.append(queue)
 
     async def event_generator():
         try:
             while True:
-                data = await queue.get()
-                yield f"data: {json.dumps(data)}\n\n"
+                try:
+                    data = await asyncio.wait_for(queue.get(), timeout=25)
+                    yield f"data: {json.dumps(data)}\n\n"
+                except asyncio.TimeoutError:
+                    # 🔥 keep-alive ping (MEGET vigtigt for mobile/Samsung)
+                    yield "data: {}\n\n"
         finally:
             clients.remove(queue)
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
-
+# =====================================================
+# BROADCAST FUNCTIONS (beholdt)
+# =====================================================
 def broadcast_flic(button_id):
     for queue in clients:
         queue.put_nowait({
             "type": "pairing",
             "flic_id": button_id
         })
-
 
 def broadcast_known(button_id, name):
     for queue in clients:
@@ -94,6 +115,15 @@ def broadcast_known(button_id, name):
             "name": name
         })
 
+# =====================================================
+# MATCH ENDED EVENT (tilføj denne hvis ikke allerede)
+# =====================================================
+def broadcast_match_end(token):
+    for queue in clients:
+        queue.put_nowait({
+            "type": "matchEnded",
+            "token": token
+        })
 
 # =====================================================
 # AUTO PAUSE JOB
@@ -640,3 +670,23 @@ scheduler.add_job(
 )
 
 scheduler.start()
+
+
+# =====================================================
+# WEBSOCKET
+# =====================================================
+
+
+
+ws_connections = []
+
+@app.websocket("/ws/livescore")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    ws_connections.append(websocket)
+
+    try:
+        while True:
+            await websocket.receive_text()  # keep alive
+    except:
+        ws_connections.remove(websocket)
