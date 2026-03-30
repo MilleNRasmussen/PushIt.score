@@ -696,5 +696,5 @@ async def websocket_endpoint(websocket: WebSocket):
 
 @app.get("/test-event")
 def test_event():
-    broadcast_match_end("213")
+    broadcast_match_end("214")
     return {"sent": True}
