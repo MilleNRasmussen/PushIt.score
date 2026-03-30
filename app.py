@@ -124,6 +124,7 @@ def broadcast_match_end(token):
             "type": "matchEnded",
             "token": token
         })
+      
 
 # =====================================================
 # AUTO PAUSE JOB
@@ -695,5 +696,5 @@ async def websocket_endpoint(websocket: WebSocket):
 
 @app.get("/test-event")
 def test_event():
-    broadcast_match_end("ABC")
+    broadcast_match_end("212")
     return {"sent": True}
