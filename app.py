@@ -706,3 +706,26 @@ def test_event():
 
     print("🔥 INSTANCE ID:", os.getenv("RAILWAY_SERVICE_ID"))
     return {"sent": True}
+
+
+
+
+@app.get("/api/match/{match_id}")
+def get_match_token(match_id: int):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT PublicToken
+        FROM MatchHeader
+        WHERE ID = %s
+        LIMIT 1
+    """, (match_id,))
+
+    row = cur.fetchone()
+    conn.close()
+
+    if row:
+        return {"token": row["PublicToken"]}
+
+    return {"token": None}
