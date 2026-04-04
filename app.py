@@ -144,23 +144,23 @@ def pause_inactive_matches():
     try:
 
         cur.execute("""
-            UPDATE MatchHeader mh
-            LEFT JOIN (
-                SELECT HeaderID, MAX(Timestamp) AS LastPoint
+           UPDATE MatchHeader mh
+           LEFT JOIN (
+                SELECT MatchHeaderID, MAX(Timestamp) AS LastPoint
                 FROM MatchDetailPoint
-                GROUP BY HeaderID
-            ) md ON md.HeaderID = mh.ID
+                WHERE Deleted = 0
+                GROUP BY MatchHeaderID
+            ) md ON md.MatchHeaderID = mh.ID
             SET mh.Status='SystemPaused',
                 PausedAt = NOW()
             WHERE mh.Status='Live'
-            AND COALESCE(md.LastPoint, mh.StartedAt) < NOW() - INTERVAL 5 MINUTE
+            AND COALESCE(md.LastPoint, mh.StartedAt) < NOW() - INTERVAL 5 MINUTE;
         """)
 
         conn.commit()
 
     finally:
         conn.close()
-
 
 # =====================================================
 # CLOSE FINISHED MATCHES
