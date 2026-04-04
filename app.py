@@ -416,43 +416,41 @@ async def create_match(data: MatchCreate):
         conn.close()
      
 # 🔥 INSERT MATCH
-cur.execute("""
-INSERT INTO MatchHeader 
-    (TableID, MatchTypeID, MatchGameModeID, PublicToken, Status, StartedAt, Timestamp)
-VALUES (%s, %s, %s, %s, 'Live', NOW(), NOW())
-""", (
-    table_id,  # kan være None ✔
-    data.match_type_id,
-    data.match_gamemode_id,
-    data.public_token if data.public_token else None  # ✅ FIX
-))
-
-match_id = cur.lastrowid
-
-if not match_id:
-    conn.rollback()
-    return {"error": "Match blev ikke oprettet"}
-
-# 🔥 indsæt spillere
-player_number = 1
-for player_id in data.players:
+try:
     cur.execute("""
-        INSERT INTO MatchPlayers (MatchID, PlayerID, PlayerNumber, Timestamp)
-        VALUES (%s, %s, %s, NOW())
-    """, (match_id, player_id, player_number))
-    player_number += 1
+    INSERT INTO MatchHeader 
+        (TableID, MatchTypeID, MatchGameModeID, PublicToken, Status, StartedAt, Timestamp)
+    VALUES (%s, %s, %s, %s, 'Live', NOW(), NOW())
+    """, (
+        table_id,
+        data.match_type_id,
+        data.match_gamemode_id,
+        data.public_token if data.public_token else None
+    ))
 
-conn.commit()
+    match_id = cur.lastrowid
 
-return {"match_id": match_id}
-
-    except Exception as e:
+    if not match_id:
         conn.rollback()
-        return {"error": str(e)}
+        return {"error": "Match blev ikke oprettet"}
 
-    finally:
-        conn.close()
+    player_number = 1
+    for player_id in data.players:
+        cur.execute("""
+            INSERT INTO MatchPlayers (MatchID, PlayerID, PlayerNumber, Timestamp)
+            VALUES (%s, %s, %s, NOW())
+        """, (match_id, player_id, player_number))
+        player_number += 1
 
+    conn.commit()
+    return {"match_id": match_id}
+
+except Exception as e:
+    conn.rollback()
+    return {"error": str(e)}
+
+finally:
+    conn.close()
 
 # ---------- LIVESCORE ----------
 @app.get("/MatchLivescore/{match_id}")
