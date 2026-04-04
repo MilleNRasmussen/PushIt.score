@@ -147,7 +147,7 @@ def pause_inactive_matches():
             UPDATE MatchHeader mh
             LEFT JOIN (
                 SELECT HeaderID, MAX(Timestamp) AS LastPoint
-                FROM MatchDetail
+                FROM MatchDetailPoint
                 GROUP BY HeaderID
             ) md ON md.HeaderID = mh.ID
             SET mh.Status='SystemPaused',
