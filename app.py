@@ -337,8 +337,8 @@ async def update_user(user_id: int, data: UserUpdate):
 async def create_match(data: MatchCreate):
     conn = get_conn()
     cur = conn.cursor()
-    try:
 
+    try:
         # 🔎 check om spillere allerede er i aktiv kamp
         format_strings = ','.join(['%s'] * len(data.players))
 
@@ -361,10 +361,10 @@ async def create_match(data: MatchCreate):
                 "error": f"{existing['Navn']} spiller allerede på bane {existing['TableID']} (match {existing['match_id']})"
             }
 
-        # 🔥 OPTIONAL TOKEN (FIX)
+        # 🔥 OPTIONAL TOKEN
         table_id = None
 
-        if data.public_token:
+        if data.public_token and data.public_token.strip():
             cur.execute("""
                 SELECT ID
                 FROM CustomerClub
@@ -376,44 +376,43 @@ async def create_match(data: MatchCreate):
 
             if table:
                 table_id = table["ID"]
-       
-     
-# 🔥 INSERT MATCH
-try:
-    cur.execute("""
-    INSERT INTO MatchHeader 
-        (TableID, MatchTypeID, MatchGameModeID, PublicToken, Status, StartedAt, Timestamp)
-    VALUES (%s, %s, %s, %s, 'Live', NOW(), NOW())
-    """, (
-        table_id,
-        data.match_type_id,
-        data.match_gamemode_id,
-        data.public_token if data.public_token else None
-    ))
 
-    match_id = cur.lastrowid
-
-    if not match_id:
-        conn.rollback()
-        return {"error": "Match blev ikke oprettet"}
-
-    player_number = 1
-    for player_id in data.players:
+        # 🔥 INSERT MATCH
         cur.execute("""
-            INSERT INTO MatchPlayers (MatchID, PlayerID, PlayerNumber, Timestamp)
-            VALUES (%s, %s, %s, NOW())
-        """, (match_id, player_id, player_number))
-        player_number += 1
+        INSERT INTO MatchHeader 
+            (TableID, MatchTypeID, MatchGameModeID, PublicToken, Status, StartedAt, Timestamp)
+        VALUES (%s, %s, %s, %s, 'Live', NOW(), NOW())
+        """, (
+            table_id,
+            data.match_type_id,
+            data.match_gamemode_id,
+            data.public_token if data.public_token else None
+        ))
 
-    conn.commit()
-    return {"match_id": match_id}
+        match_id = cur.lastrowid
 
-except Exception as e:
-    conn.rollback()
-    return {"error": str(e)}
+        if not match_id:
+            conn.rollback()
+            return {"error": "Match blev ikke oprettet"}
 
-finally:
-    conn.close()
+        # 🔥 indsæt spillere
+        player_number = 1
+        for player_id in data.players:
+            cur.execute("""
+                INSERT INTO MatchPlayers (MatchID, PlayerID, PlayerNumber, Timestamp)
+                VALUES (%s, %s, %s, NOW())
+            """, (match_id, player_id, player_number))
+            player_number += 1
+
+        conn.commit()
+        return {"match_id": match_id}
+
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
 
 # ---------- LIVESCORE ----------
 @app.get("/MatchLivescore/{match_id}")
