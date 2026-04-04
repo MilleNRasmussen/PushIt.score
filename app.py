@@ -153,7 +153,7 @@ def pause_inactive_matches():
             SET mh.Status='SystemPaused',
                 PausedAt = NOW()
             WHERE mh.Status='Live'
-            AND COALESCE(md.LastPoint, mh.StartedAt) < NOW() - INTERVAL 1 MINUTE
+            AND COALESCE(md.LastPoint, mh.StartedAt) < NOW() - INTERVAL 5 MINUTE
         """)
 
         conn.commit()
