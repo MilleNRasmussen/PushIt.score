@@ -50,7 +50,7 @@ class MatchCreate(BaseModel):
     match_type_id: int
     match_gamemode_id: int
     players: List[int]
-    public_token: str
+    public_token: Optional[str] = None
 
 class UserUpdate(BaseModel):
     name: str | None = None
@@ -338,8 +338,11 @@ async def create_match(data: MatchCreate):
     conn = get_conn()
     cur = conn.cursor()
     try:
+
         # 🔎 check om spillere allerede er i aktiv kamp
-        cur.execute("""
+        format_strings = ','.join(['%s'] * len(data.players))
+
+        cur.execute(f"""
         SELECT 
                u.Navn,
                mh.ID AS match_id,
@@ -347,34 +350,32 @@ async def create_match(data: MatchCreate):
         FROM MatchPlayers mp
         JOIN MatchHeader mh ON mh.ID = mp.MatchID
         JOIN Users u ON u.ID = mp.PlayerID
-        WHERE mp.PlayerID IN %s
+        WHERE mp.PlayerID IN ({format_strings})
         AND mh.Status IN ('Live','FinishedPending')
         LIMIT 1
-        """, (tuple(data.players),))
-        
+        """, tuple(data.players))
+
         existing = cur.fetchone()
         if existing:
             return {
                 "error": f"{existing['Navn']} spiller allerede på bane {existing['TableID']} (match {existing['match_id']})"
             }
 
-        # 🔥 HENT TABLE FRA TOKEN (FIXET)
-        if not data.public_token:
-            return {"error": "public_token mangler"}
+        # 🔥 OPTIONAL TOKEN (FIX)
+        table_id = None
 
-        cur.execute("""
-            SELECT ID
-            FROM CustomerClub
-            WHERE PublicToken = %s
-            LIMIT 1
-        """, (data.public_token,))
-        
-        table = cur.fetchone()
+        if data.public_token:
+            cur.execute("""
+                SELECT ID
+                FROM CustomerClub
+                WHERE PublicToken = %s
+                LIMIT 1
+            """, (data.public_token,))
+            
+            table = cur.fetchone()
 
-        if not table:
-            return {"error": f"Token findes ikke: {data.public_token}"}
-
-        table_id = table["ID"]
+            if table:
+                table_id = table["ID"]
 
         # 🔥 INSERT MATCH
         cur.execute("""
@@ -382,10 +383,10 @@ async def create_match(data: MatchCreate):
             (TableID, MatchTypeID, MatchGameModeID, PublicToken, Status, StartedAt, Timestamp)
         VALUES (%s, %s, %s, %s, 'Live', NOW(), NOW())
         """, (
-           table_id,
-           data.match_type_id,
-           data.match_gamemode_id,
-           data.public_token
+            table_id,
+            data.match_type_id,
+            data.match_gamemode_id,
+            data.public_token if data.public_token else None
         ))
 
         match_id = cur.lastrowid
@@ -394,7 +395,7 @@ async def create_match(data: MatchCreate):
             conn.rollback()
             return {"error": "Match blev ikke oprettet"}
 
-        # indsæt spillere
+        # 🔥 indsæt spillere
         player_number = 1
         for player_id in data.players:
             cur.execute("""
@@ -404,7 +405,46 @@ async def create_match(data: MatchCreate):
             player_number += 1
 
         conn.commit()
+
         return {"match_id": match_id}
+
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
+     
+# 🔥 INSERT MATCH
+cur.execute("""
+INSERT INTO MatchHeader 
+    (TableID, MatchTypeID, MatchGameModeID, PublicToken, Status, StartedAt, Timestamp)
+VALUES (%s, %s, %s, %s, 'Live', NOW(), NOW())
+""", (
+    table_id,  # kan være None ✔
+    data.match_type_id,
+    data.match_gamemode_id,
+    data.public_token if data.public_token else None  # ✅ FIX
+))
+
+match_id = cur.lastrowid
+
+if not match_id:
+    conn.rollback()
+    return {"error": "Match blev ikke oprettet"}
+
+# 🔥 indsæt spillere
+player_number = 1
+for player_id in data.players:
+    cur.execute("""
+        INSERT INTO MatchPlayers (MatchID, PlayerID, PlayerNumber, Timestamp)
+        VALUES (%s, %s, %s, NOW())
+    """, (match_id, player_id, player_number))
+    player_number += 1
+
+conn.commit()
+
+return {"match_id": match_id}
 
     except Exception as e:
         conn.rollback()
