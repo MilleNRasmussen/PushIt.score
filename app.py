@@ -734,7 +734,7 @@ def get_match_token(match_id: int):
 
 
 
-@app.post("/flic-webhook")
+@app.post("/webhook")
 async def flic_webhook(request: Request):
     conn = get_conn()
     cur = conn.cursor()
