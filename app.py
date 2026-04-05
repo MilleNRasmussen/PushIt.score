@@ -745,8 +745,23 @@ async def flic_webhook(request: Request):
         except:
             data = {}
 
+        # 🔥 BUTTON ID
         button_id = request.headers.get("button-serial-number")
-        click_type = data.get("click_type", "ButtonSingleClick")
+
+        # 🔥 ROBUST CLICK TYPE (BODY + HEADER + LOWERCASE)
+        click_type = (
+            data.get("click_type")
+            or request.headers.get("click_type")
+            or request.headers.get("Click-Type")
+            or request.headers.get("click-type")
+            or "ButtonSingleClick"
+        )
+
+        click_type_clean = click_type.lower()
+
+        print("---- WEBHOOK ----")
+        print("BUTTON:", button_id)
+        print("CLICK RAW:", click_type)
 
         if not button_id:
             return {"error": "No button id"}
@@ -763,10 +778,13 @@ async def flic_webhook(request: Request):
             JOIN MatchType mt ON mt.ID = mh.MatchTypeID
             WHERE u.ButtonID = %s
             AND mh.Status IN ('Live','FinishedPending')
+            ORDER BY mh.ID DESC
             LIMIT 1
         """, (button_id,))
 
         row = cur.fetchone()
+
+        print("ROW:", row)
 
         if not row:
             broadcast_flic(button_id)
@@ -776,41 +794,61 @@ async def flic_webhook(request: Request):
         sp_name = row["StoredProcedureName"]
         player_number = row["PlayerNumber"]
 
-        # 🔥 HOME / AWAY
+        if not sp_name:
+            return {"error": "No stored procedure configured"}
+
+        # 🔥 HOME / AWAY AUTO
         is_home = 1 if player_number in (1, 2) else 0
 
+        print("SP:", sp_name)
+        print("IS_HOME:", is_home)
+
         # =====================================================
-        # 🎯 ROUTING
+        # 🎯 ROUTING (ROBUST)
         # =====================================================
 
-        if click_type == "ButtonSingleClick":
-            # ✅ SCORE
+        if "single" in click_type_clean:
+            print("ACTION: SCORE")
             cur.callproc(sp_name, (button_id, click_type, is_home))
 
-        elif click_type == "ButtonDoubleClick":
-            # ✅ UNDO (soft delete sidste point)
+        elif "double" in click_type_clean:
+            print("ACTION: UNDO")
+
+            # 🔥 SAFE DELETE (virker altid)
             cur.execute("""
                 UPDATE MatchDetailPoint
                 SET Deleted = 1
-                WHERE MatchHeaderID = %s
-                AND Deleted = 0
-                ORDER BY ID DESC
-                LIMIT 1
+                WHERE ID = (
+                    SELECT ID FROM (
+                        SELECT ID
+                        FROM MatchDetailPoint
+                        WHERE MatchHeaderID = %s
+                        AND Deleted = 0
+                        ORDER BY ID DESC
+                        LIMIT 1
+                    ) as tmp
+                )
             """, (match_id,))
 
-        elif click_type == "ButtonHold":
-            # ✅ CLOSE MATCH
+        elif "hold" in click_type_clean:
+            print("ACTION: CLOSE MATCH")
+
             cur.execute("""
                 UPDATE MatchHeader
                 SET Status = 'FinishedPending'
                 WHERE ID = %s
             """, (match_id,))
 
+        else:
+            print("UNKNOWN CLICK TYPE:", click_type)
+            return {"error": "Unknown click type", "click_type": click_type}
+
         conn.commit()
 
         return {"status": "ok"}
 
     except Exception as e:
+        print("ERROR:", e)
         conn.rollback()
         return {"error": str(e)}
 
