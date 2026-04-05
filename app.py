@@ -729,3 +729,90 @@ def get_match_token(match_id: int):
         return {"token": row["PublicToken"]}
 
     return {"token": None}
+
+
+
+
+
+@app.post("/flic-webhook")
+async def flic_webhook(request: Request):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        try:
+            data = await request.json()
+        except:
+            data = {}
+
+        button_id = request.headers.get("button-serial-number")
+        click_type = data.get("click_type", "ButtonSingleClick")
+
+        if not button_id:
+            return {"error": "No button id"}
+
+        # 🔎 FIND MATCH + MATCHTYPE + PLAYER
+        cur.execute("""
+            SELECT 
+                mh.ID as match_id,
+                mt.StoredProcedureName,
+                mp.PlayerNumber
+            FROM Users u
+            JOIN MatchPlayers mp ON mp.PlayerID = u.ID
+            JOIN MatchHeader mh ON mh.ID = mp.MatchID
+            JOIN MatchType mt ON mt.ID = mh.MatchTypeID
+            WHERE u.ButtonID = %s
+            AND mh.Status IN ('Live','FinishedPending')
+            LIMIT 1
+        """, (button_id,))
+
+        row = cur.fetchone()
+
+        if not row:
+            broadcast_flic(button_id)
+            return {"status": "pairing"}
+
+        match_id = row["match_id"]
+        sp_name = row["StoredProcedureName"]
+        player_number = row["PlayerNumber"]
+
+        # 🔥 HOME / AWAY
+        is_home = 1 if player_number in (1, 2) else 0
+
+        # =====================================================
+        # 🎯 ROUTING
+        # =====================================================
+
+        if click_type == "ButtonSingleClick":
+            # ✅ SCORE
+            cur.callproc(sp_name, (button_id, click_type, is_home))
+
+        elif click_type == "ButtonDoubleClick":
+            # ✅ UNDO (soft delete sidste point)
+            cur.execute("""
+                UPDATE MatchDetailPoint
+                SET Deleted = 1
+                WHERE MatchHeaderID = %s
+                AND Deleted = 0
+                ORDER BY ID DESC
+                LIMIT 1
+            """, (match_id,))
+
+        elif click_type == "ButtonHold":
+            # ✅ CLOSE MATCH
+            cur.execute("""
+                UPDATE MatchHeader
+                SET Status = 'FinishedPending'
+                WHERE ID = %s
+            """, (match_id,))
+
+        conn.commit()
+
+        return {"status": "ok"}
+
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
