@@ -854,3 +854,17 @@ async def flic_webhook(request: Request):
 
     finally:
         conn.close()
+
+
+
+@app.get("/matchtypes")
+def get_matchtypes():
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("SELECT ID, Name FROM MatchType")
+
+    rows = cur.fetchall()
+    conn.close()
+
+    return rows
