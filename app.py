@@ -862,7 +862,7 @@ def get_matchtypes():
     conn = get_conn()
     cur = conn.cursor()
 
-    cur.execute("SELECT ID, Name FROM MatchType")
+    cur.execute("SELECT ID, Name, PlayerPerTeamDefault FROM MatchType")
 
     rows = cur.fetchall()
     conn.close()
