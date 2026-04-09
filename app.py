@@ -421,21 +421,23 @@ def read_match_livescore(match_id: int):
     cur = conn.cursor()
     cur.execute("""
         SELECT
-            msa.MatchHeaderID,
-            msa.HomeTeamPoint,
-            msa.HomeGame,
-            msa.HomeSet,
-            msa.AwayTeamPoint,
-            msa.AwayGame,
-            msa.AwaySet,
-            mt.SetDefault 
-        FROM MatchesScoreActual msa
-        JOIN MatchHeader mh ON mh.ID = msa.MatchHeaderID
+            mh.ID as MatchHeaderID,
+            COALESCE(msa.HomeTeamPoint, 0) as HomeTeamPoint,
+            COALESCE(msa.HomeGame, 0) as HomeGame,
+            COALESCE(msa.HomeSet, 0) as HomeSet,
+            COALESCE(msa.AwayTeamPoint, 0) as AwayTeamPoint,
+            COALESCE(msa.AwayGame, 0) as AwayGame,
+            COALESCE(msa.AwaySet, 0) as AwaySet,
+            mt.SetDefault
+        FROM MatchHeader mh
         JOIN MatchType mt ON mt.ID = mh.MatchTypeID
-        WHERE MatchHeaderID = %s
+        LEFT JOIN MatchesScoreActual msa ON mh.ID = msa.MatchHeaderID
+        WHERE mh.ID = %s
         LIMIT 1
     """, (match_id,))
     score = cur.fetchone()
+
+    set_default = score["SetDefault"] if score and "SetDefault" in score else 3
     # HENT MATCH STATUS
     cur.execute("""
         SELECT Status
@@ -477,7 +479,8 @@ def read_match_livescore(match_id: int):
         "score": score,
         "status": status,
         "homePlayers": home,
-        "awayPlayers": away
+        "awayPlayers": away,
+        "setDefault": set_default 
     }
 # =====================================================
 # FLIC BUTTONS
