@@ -421,14 +421,17 @@ def read_match_livescore(match_id: int):
     cur = conn.cursor()
     cur.execute("""
         SELECT
-            MatchHeaderID,
-            HomeTeamPoint,
-            HomeGame,
-            HomeSet,
-            AwayTeamPoint,
-            AwayGame,
-            AwaySet
-        FROM MatchesScoreActual
+            msa.MatchHeaderID,
+            msa.HomeTeamPoint,
+            msa.HomeGame,
+            msa.HomeSet,
+            msa.AwayTeamPoint,
+            msa.AwayGame,
+            msa.AwaySet,
+            mt.SetDefault 
+        FROM MatchesScoreActual msa
+        JOIN MatchHeader mh ON mh.ID = msa.MatchHeaderID
+        JOIN MatchType mt ON mt.ID = mh.MatchTypeID
         WHERE MatchHeaderID = %s
         LIMIT 1
     """, (match_id,))
