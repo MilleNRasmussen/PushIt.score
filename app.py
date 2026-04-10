@@ -2,6 +2,7 @@ import os
 import pymysql
 import json
 import asyncio
+import time
 from fastapi import FastAPI, Request, UploadFile, File, Form
 from typing import List, Optional
 from pydantic import BaseModel
@@ -834,15 +835,14 @@ async def flic_webhook(request: Request):
         print("SP:", sp_name)
         print("IS_HOME:", is_home)
 
-        # =====================================================
-        # 🎯 ROUTING (ROBUST)
-        # =====================================================
+       import time
 
-      import time
-
-if click_type_clean == "buttondoubleclick":
-    print("ACTION: UNDO", flush=True)
-    print("CLICK CLEAN:", click_type_clean, flush=True)
+# =====================================================
+# 🎯 ROUTING (ROBUST)
+# =====================================================
+    if click_type_clean == "buttondoubleclick":
+      print("ACTION: UNDO", flush=True)
+      print("CLICK CLEAN:", click_type_clean, flush=True)
 
     cur.execute("""
         UPDATE MatchDetailPoint
@@ -860,7 +860,7 @@ if click_type_clean == "buttondoubleclick":
     """, (match_id,))
 
 
-elif click_type_clean == "buttonhold":
+    elif click_type_clean == "buttonhold":
     print("ACTION: CLOSE MATCH", flush=True)
     print("CLICK CLEAN:", click_type_clean, flush=True)
 
@@ -871,24 +871,26 @@ elif click_type_clean == "buttonhold":
     """, (match_id,))
 
 
-elif click_type_clean == "buttonsingleclick":
-    print("CLICK CLEAN:", click_type_clean, flush=True)
+    elif click_type_clean == "buttonsingleclick":
+      print("CLICK CLEAN:", click_type_clean, flush=True)
 
-    # 🔥 VENT for at se om det faktisk er double
-    time.sleep(0.35)
+    # 🔥 VENT for double
+      time.sleep(0.35)
 
-    print("ACTION: SCORE", flush=True)
+      print("ACTION: SCORE", flush=True)
 
-    cur.callproc(sp_name, (button_id, click_type, is_home))
+      cur.callproc(sp_name, (button_id, click_type, is_home))
 
 
-else:
-    print("UNKNOWN CLICK TYPE:", click_type, flush=True)
+    else:
+      print("UNKNOWN CLICK TYPE:", click_type, flush=True)
     return {"error": "Unknown click type", "click_type": click_type}
 
 
-conn.commit()
-return {"status": "ok"}
+# ✅ commit SKAL være udenfor if
+    conn.commit()
+    return {"status": "ok"}
+
 @app.get("/matchtypes")
 def get_matchtypes():
     conn = get_conn()
