@@ -840,6 +840,7 @@ async def flic_webhook(request: Request):
 
         if "double" in click_type_clean:
             print("ACTION: UNDO")
+            print("CLICK CLEAN:", click_type_clean)
 
             # 🔥 SAFE DELETE (virker altid)
             cur.execute("""
@@ -859,6 +860,7 @@ async def flic_webhook(request: Request):
 
         elif "hold" in click_type_clean:
             print("ACTION: CLOSE MATCH")
+            print("CLICK CLEAN:", click_type_clean)
 
             cur.execute("""
                 UPDATE MatchHeader
@@ -869,6 +871,7 @@ async def flic_webhook(request: Request):
 
 
         elif "single" in click_type_clean:
+           print("CLICK CLEAN:", click_type_clean)
            print("ACTION: SCORE")
            cur.callproc(sp_name, (button_id, click_type, is_home))
 
