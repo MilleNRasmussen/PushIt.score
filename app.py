@@ -838,64 +838,57 @@ async def flic_webhook(request: Request):
         # 🎯 ROUTING (ROBUST)
         # =====================================================
 
-        if "double" in click_type_clean:
-            print("ACTION: UNDO")
-            print("CLICK CLEAN:", click_type_clean)
+      import time
 
-            # 🔥 SAFE DELETE (virker altid)
-            cur.execute("""
-                UPDATE MatchDetailPoint
-                SET Deleted = 1
-                WHERE ID = (
-                    SELECT ID FROM (
-                        SELECT ID
-                        FROM MatchDetailPoint
-                        WHERE MatchHeaderID = %s
-                        AND Deleted = 0
-                        ORDER BY ID DESC
-                        LIMIT 1
-                    ) as tmp
-                )
-            """, (match_id,))
+if click_type_clean == "buttondoubleclick":
+    print("ACTION: UNDO", flush=True)
+    print("CLICK CLEAN:", click_type_clean, flush=True)
 
-        elif "hold" in click_type_clean:
-            print("ACTION: CLOSE MATCH")
-            print("CLICK CLEAN:", click_type_clean)
-
-            cur.execute("""
-                UPDATE MatchHeader
-                SET Status = 'FinishedPending'
-                WHERE ID = %s
-            """, (match_id,))
+    cur.execute("""
+        UPDATE MatchDetailPoint
+        SET Deleted = 1
+        WHERE ID = (
+            SELECT ID FROM (
+                SELECT ID
+                FROM MatchDetailPoint
+                WHERE MatchHeaderID = %s
+                AND Deleted = 0
+                ORDER BY ID DESC
+                LIMIT 1
+            ) as tmp
+        )
+    """, (match_id,))
 
 
+elif click_type_clean == "buttonhold":
+    print("ACTION: CLOSE MATCH", flush=True)
+    print("CLICK CLEAN:", click_type_clean, flush=True)
 
-        elif "single" in click_type_clean:
-           print("CLICK CLEAN:", click_type_clean)
-           print("ACTION: SCORE")
-           cur.callproc(sp_name, (button_id, click_type, is_home))
-
-        
-        
-
-        else:
-            print("UNKNOWN CLICK TYPE:", click_type)
-            return {"error": "Unknown click type", "click_type": click_type}
-
-        conn.commit()
-
-        return {"status": "ok"}
-
-    except Exception as e:
-        print("ERROR:", e)
-        conn.rollback()
-        return {"error": str(e)}
-
-    finally:
-        conn.close()
+    cur.execute("""
+        UPDATE MatchHeader
+        SET Status = 'FinishedPending'
+        WHERE ID = %s
+    """, (match_id,))
 
 
+elif click_type_clean == "buttonsingleclick":
+    print("CLICK CLEAN:", click_type_clean, flush=True)
 
+    # 🔥 VENT for at se om det faktisk er double
+    time.sleep(0.35)
+
+    print("ACTION: SCORE", flush=True)
+
+    cur.callproc(sp_name, (button_id, click_type, is_home))
+
+
+else:
+    print("UNKNOWN CLICK TYPE:", click_type, flush=True)
+    return {"error": "Unknown click type", "click_type": click_type}
+
+
+conn.commit()
+return {"status": "ok"}
 @app.get("/matchtypes")
 def get_matchtypes():
     conn = get_conn()
