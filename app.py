@@ -818,7 +818,10 @@ async def flic_webhook(request: Request):
             return {"error": "No stored procedure configured"}
 
         # 🔥 HOME / AWAY AUTO
-        is_home = 1 if player_number in (1, 2) else 0
+        if total_players == 2:
+            is_home = 1 if player_number == 1 else 0
+        else:
+            is_home = 1 if player_number in (1, 2) else 0
 
         print("SP:", sp_name)
         print("IS_HOME:", is_home)
