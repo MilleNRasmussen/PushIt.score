@@ -428,7 +428,8 @@ def read_match_livescore(match_id: int):
             COALESCE(msa.AwayTeamPoint, 0) as AwayTeamPoint,
             COALESCE(msa.AwayGame, 0) as AwayGame,
             COALESCE(msa.AwaySet, 0) as AwaySet,
-            mt.SetDefault
+            mt.SetDefault,
+            mt.name
         FROM MatchHeader mh
         JOIN MatchType mt ON mt.ID = mh.MatchTypeID
         LEFT JOIN MatchesScoreActual msa ON mh.ID = msa.MatchHeaderID
