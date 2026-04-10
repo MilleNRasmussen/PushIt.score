@@ -838,11 +838,7 @@ async def flic_webhook(request: Request):
         # 🎯 ROUTING (ROBUST)
         # =====================================================
 
-        if "single" in click_type_clean:
-            print("ACTION: SCORE")
-            cur.callproc(sp_name, (button_id, click_type, is_home))
-
-        elif "double" in click_type_clean:
+        if "double" in click_type_clean:
             print("ACTION: UNDO")
 
             # 🔥 SAFE DELETE (virker altid)
@@ -869,6 +865,15 @@ async def flic_webhook(request: Request):
                 SET Status = 'FinishedPending'
                 WHERE ID = %s
             """, (match_id,))
+
+
+
+        elif "single" in click_type_clean:
+           print("ACTION: SCORE")
+           cur.callproc(sp_name, (button_id, click_type, is_home))
+
+        
+        
 
         else:
             print("UNKNOWN CLICK TYPE:", click_type)
