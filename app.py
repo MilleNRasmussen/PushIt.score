@@ -826,61 +826,51 @@ async def flic_webhook(request: Request):
         print("SP:", sp_name, flush=True)
         print("IS_HOME:", is_home, flush=True)
 
-        # ---------- ROUTING ----------
-        if click_type_clean == "buttondoubleclick":
-            print("ACTION: UNDO", flush=True)
 
-            cur.execute("""
-                UPDATE MatchDetailPoint
-                SET Deleted = 1
-                WHERE ID = (
-                    SELECT ID FROM (
-                        SELECT ID
-                        FROM MatchDetailPoint
-                        WHERE MatchHeaderID = %s
-                        AND Deleted = 0
-                        ORDER BY ID DESC
-                        LIMIT 1
-                    ) as tmp
-                )
-            """, (match_id,))
+now = time.time()
+
+last = click_buffer.get(button_id)
+
+# første klik
+if not last:
+    click_buffer[button_id] = {
+        "time": now,
+        "count": 1
+    }
+    time.sleep(0.3)
+
+    # check om der kom flere klik
+    current = click_buffer.get(button_id)
+
+    if current["count"] == 1:
+        print("SINGLE", flush=True)
+        cur.callproc(sp_name, (button_id, "single", is_home))
+
+    elif current["count"] >= 2:
+        print("DOUBLE", flush=True)
+        cur.execute("""
+            UPDATE MatchDetailPoint
+            SET Deleted = 1
+            WHERE ID = (
+                SELECT ID FROM (
+                    SELECT ID
+                    FROM MatchDetailPoint
+                    WHERE MatchHeaderID = %s
+                    AND Deleted = 0
+                    ORDER BY ID DESC
+                    LIMIT 1
+                ) as tmp
+            )
+        """, (match_id,))
+
+    click_buffer.pop(button_id, None)
 
 
-        elif click_type_clean == "buttonhold":
-            print("ACTION: CLOSE MATCH", flush=True)
-
-            cur.execute("""
-                UPDATE MatchHeader
-                SET Status = 'FinishedPending'
-                WHERE ID = %s
-            """, (match_id,))
-
-
-        elif click_type_clean == "buttonsingleclick":
-            print("ACTION: SCORE (delayed)", flush=True)
-
-            # 🔥 delay så double kan overtage
-            time.sleep(0.35)
-
-            cur.callproc(sp_name, (button_id, click_type, is_home))
-
-
-        else:
-            print("UNKNOWN CLICK TYPE:", click_type, flush=True)
-            return {"error": "Unknown click type", "click_type": click_type}
-
-        # ---------- COMMIT ----------
-        conn.commit()
-        return {"status": "ok"}
-
-    except Exception as e:
-        print("ERROR:", e, flush=True)
-        conn.rollback()
-        return {"error": str(e)}
-
-    finally:
-        conn.close()
-
+# flere klik indenfor vindue
+else:
+    last["count"] += 1
+    click_buffer[button_id] = last
+    return {"status": "buffering"}
 
 
 
