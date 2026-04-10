@@ -752,13 +752,55 @@ def get_match_token(match_id: int):
     return {"token": None}
 
 
+# ===============================
+# HELPER
+# ===============================
+def get_match_data(cur, button_id):
+    cur.execute("""
+        SELECT
+            mh.ID as match_id,
+            mt.StoredProcedureName,
+            mp.PlayerNumber,
+            (
+                SELECT COUNT(*)
+                FROM MatchPlayers
+                WHERE MatchID = mh.ID
+            ) as total_players
+        FROM Users u
+        JOIN MatchPlayers mp ON mp.PlayerID = u.ID
+        JOIN MatchHeader mh ON mh.ID = mp.MatchID
+        JOIN MatchType mt ON mt.ID = mh.MatchTypeID
+        WHERE u.ButtonID = %s
+        AND mh.Status IN ('Live','FinishedPending')
+        ORDER BY mh.ID DESC
+        LIMIT 1
+    """, (button_id,))
 
+    row = cur.fetchone()
+    if not row:
+        return None
+
+    if row["total_players"] == 2:
+        is_home = 1 if row["PlayerNumber"] == 1 else 0
+    else:
+        is_home = 1 if row["PlayerNumber"] in (1, 2) else 0
+
+    return {
+        "match_id": row["match_id"],
+        "is_home": is_home
+    }
+
+# ===============================
+# 1. POINT
+# ===============================
 @app.post("/webhook_point")
 async def webhook_point(request: Request):
     conn = get_conn()
     cur = conn.cursor()
 
     try:
+        print("ENDPOINT: POINT", flush=True)
+
         button_id = request.headers.get("button-serial-number")
         if not button_id:
             return {"error": "No button id"}
@@ -769,9 +811,6 @@ async def webhook_point(request: Request):
             broadcast_flic(button_id)
             return {"status": "pairing"}
 
-        print("POINT", flush=True)
-
-        # 🔥 KORREKT SP
         cur.callproc(
             "SP_InsertScore",
             (button_id, "single", data["is_home"])
@@ -787,102 +826,27 @@ async def webhook_point(request: Request):
     finally:
         conn.close()
 
-
+# ===============================
+# 2. DELETE POINT
+# ===============================
 @app.post("/webhook_delete_point")
-async def flic_webhook(request: Request):
+async def webhook_delete_point(request: Request):
     conn = get_conn()
     cur = conn.cursor()
 
     try:
-        # ---------- READ REQUEST ----------
-        try:
-            data = await request.json()
-        except:
-            data = {}
+        print("ENDPOINT: DELETE", flush=True)
 
         button_id = request.headers.get("button-serial-number")
-
-        click_type = (
-            data.get("click_type")
-            or request.headers.get("click_type")
-            or request.headers.get("Click-Type")
-            or request.headers.get("click-type")
-            or "ButtonSingleClick"
-        )
-
-        click_type_clean = click_type.lower()
-
-        print("---- WEBHOOK ----", flush=True)
-        print("BUTTON:", button_id, flush=True)
-        print("CLICK RAW:", click_type, flush=True)
-
         if not button_id:
             return {"error": "No button id"}
 
-        # ---------- FIND MATCH ----------
-        cur.execute("""
-            SELECT 
-                mh.ID as match_id,
-                mt.StoredProcedureName,
-                mp.PlayerNumber,
-                (
-                    SELECT COUNT(*) 
-                    FROM MatchPlayers 
-                    WHERE MatchID = mh.ID
-                ) as total_players
-            FROM Users u
-            JOIN MatchPlayers mp ON mp.PlayerID = u.ID
-            JOIN MatchHeader mh ON mh.ID = mp.MatchID
-            JOIN MatchType mt ON mt.ID = mh.MatchTypeID
-            WHERE u.ButtonID = %s
-            AND mh.Status IN ('Live','FinishedPending')
-            ORDER BY mh.ID DESC
-            LIMIT 1
-        """, (button_id,))
+        data = get_match_data(cur, button_id)
 
-        row = cur.fetchone()
-
-        if not row:
+        if not data:
             broadcast_flic(button_id)
             return {"status": "pairing"}
 
-        match_id = row["match_id"]
-        sp_name = row["StoredProcedureName"]
-        player_number = row["PlayerNumber"]
-        total_players = row["total_players"]
-
-        # ---------- HOME / AWAY ----------
-        if total_players == 2:
-            is_home = 1 if player_number == 1 else 0
-        else:
-            is_home = 1 if player_number in (1, 2) else 0
-
-        print("MATCH:", match_id, flush=True)
-        print("SP:", sp_name, flush=True)
-        print("IS_HOME:", is_home, flush=True)
-
-
-now = time.time()
-
-last = click_buffer.get(button_id)
-
-# første klik
-if not last:
-    click_buffer[button_id] = {
-        "time": now,
-        "count": 1
-    }
-    time.sleep(0.3)
-
-    # check om der kom flere klik
-    current = click_buffer.get(button_id)
-
-    if current["count"] == 1:
-        print("SINGLE", flush=True)
-        cur.callproc(sp_name, (button_id, "single", is_home))
-
-    elif current["count"] >= 2:
-        print("DOUBLE", flush=True)
         cur.execute("""
             UPDATE MatchDetailPoint
             SET Deleted = 1
@@ -896,144 +860,54 @@ if not last:
                     LIMIT 1
                 ) as tmp
             )
-        """, (match_id,))
+        """, (data["match_id"],))
 
-    click_buffer.pop(button_id, None)
+        conn.commit()
+        return {"status": "ok"}
 
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}
 
-# flere klik indenfor vindue
-else:
-    last["count"] += 1
-    click_buffer[button_id] = last
-    return {"status": "buffering"}
+    finally:
+        conn.close()
 
-
-
-
+# ===============================
+# 3. END MATCH
+# ===============================
 @app.post("/webhook_end_game")
-async def flic_webhook(request: Request):
+async def webhook_end_game(request: Request):
     conn = get_conn()
     cur = conn.cursor()
 
     try:
-        # ---------- READ REQUEST ----------
-        try:
-            data = await request.json()
-        except:
-            data = {}
+        print("ENDPOINT: END GAME", flush=True)
 
         button_id = request.headers.get("button-serial-number")
-
-        click_type = (
-            data.get("click_type")
-            or request.headers.get("click_type")
-            or request.headers.get("Click-Type")
-            or request.headers.get("click-type")
-            or "ButtonSingleClick"
-        )
-
-        click_type_clean = click_type.lower()
-
-        print("---- WEBHOOK ----", flush=True)
-        print("BUTTON:", button_id, flush=True)
-        print("CLICK RAW:", click_type, flush=True)
-
         if not button_id:
             return {"error": "No button id"}
 
-        # ---------- FIND MATCH ----------
-        cur.execute("""
-            SELECT 
-                mh.ID as match_id,
-                mt.StoredProcedureName,
-                mp.PlayerNumber,
-                (
-                    SELECT COUNT(*) 
-                    FROM MatchPlayers 
-                    WHERE MatchID = mh.ID
-                ) as total_players
-            FROM Users u
-            JOIN MatchPlayers mp ON mp.PlayerID = u.ID
-            JOIN MatchHeader mh ON mh.ID = mp.MatchID
-            JOIN MatchType mt ON mt.ID = mh.MatchTypeID
-            WHERE u.ButtonID = %s
-            AND mh.Status IN ('Live','FinishedPending')
-            ORDER BY mh.ID DESC
-            LIMIT 1
-        """, (button_id,))
+        data = get_match_data(cur, button_id)
 
-        row = cur.fetchone()
-
-        if not row:
+        if not data:
             broadcast_flic(button_id)
             return {"status": "pairing"}
 
-        match_id = row["match_id"]
-        sp_name = row["StoredProcedureName"]
-        player_number = row["PlayerNumber"]
-        total_players = row["total_players"]
-
-        # ---------- HOME / AWAY ----------
-        if total_players == 2:
-            is_home = 1 if player_number == 1 else 0
-        else:
-            is_home = 1 if player_number in (1, 2) else 0
-
-        print("MATCH:", match_id, flush=True)
-        print("SP:", sp_name, flush=True)
-        print("IS_HOME:", is_home, flush=True)
-
-
-now = time.time()
-
-last = click_buffer.get(button_id)
-
-# første klik
-if not last:
-    click_buffer[button_id] = {
-        "time": now,
-        "count": 1
-    }
-    time.sleep(0.3)
-
-    # check om der kom flere klik
-    current = click_buffer.get(button_id)
-
-    if current["count"] == 1:
-        print("SINGLE", flush=True)
-        cur.callproc(sp_name, (button_id, "single", is_home))
-
-    elif current["count"] >= 2:
-        print("DOUBLE", flush=True)
         cur.execute("""
-            UPDATE MatchDetailPoint
-            SET Deleted = 1
-            WHERE ID = (
-                SELECT ID FROM (
-                    SELECT ID
-                    FROM MatchDetailPoint
-                    WHERE MatchHeaderID = %s
-                    AND Deleted = 0
-                    ORDER BY ID DESC
-                    LIMIT 1
-                ) as tmp
-            )
-        """, (match_id,))
+            UPDATE MatchHeader
+            SET Status = 'FinishedPending'
+            WHERE ID = %s
+        """, (data["match_id"],))
 
-    click_buffer.pop(button_id, None)
+        conn.commit()
+        return {"status": "ok"}
 
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}
 
-# flere klik indenfor vindue
-else:
-    last["count"] += 1
-    click_buffer[button_id] = last
-    return {"status": "buffering"}
-
-
-
-
-
-
+    finally:
+        conn.close()
 
 
 @app.get("/matchtypes")
