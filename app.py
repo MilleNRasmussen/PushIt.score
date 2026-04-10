@@ -168,7 +168,19 @@ def pause_inactive_matches():
 # =====================================================
 
 def close_finished_matches():
-    pass
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            UPDATE MatchHeader
+            SET Status = 'Closed',
+                FinishedAt = NOW()
+            WHERE Status = 'FinishedPending'
+            AND Timestamp < NOW() - INTERVAL 2 MINUTE;
+        """)
+        conn.commit()
+    finally:
+        conn.close()
 
 
 # =====================================================
@@ -481,7 +493,8 @@ def read_match_livescore(match_id: int):
         "status": status,
         "homePlayers": home,
         "awayPlayers": away,
-        "setDefault": set_default 
+        "setDefault": set_default
+        
     }
 # =====================================================
 # FLIC BUTTONS
