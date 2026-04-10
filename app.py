@@ -811,9 +811,9 @@ async def webhook_point(request: Request):
             broadcast_flic(button_id)
             return {"status": "pairing"}
 
-        cur.callproc(
 
-            print("ENDPOINT: SP_InsertScore", flush=True)
+        print("ENDPOINT: SP_InsertScore", flush=True)
+        cur.callproc(
 
             "SP_InsertScore",
             (button_id, "single", data["is_home"])
