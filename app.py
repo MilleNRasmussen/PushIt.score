@@ -791,7 +791,12 @@ async def flic_webhook(request: Request):
             SELECT 
                 mh.ID as match_id,
                 mt.StoredProcedureName,
-                mp.PlayerNumber
+                mp.PlayerNumber,
+                (
+                 SELECT COUNT(*) 
+                 FROM MatchPlayers 
+                 WHERE MatchID = mh.ID
+                ) as total_players
             FROM Users u
             JOIN MatchPlayers mp ON mp.PlayerID = u.ID
             JOIN MatchHeader mh ON mh.ID = mp.MatchID
@@ -818,12 +823,13 @@ async def flic_webhook(request: Request):
             return {"error": "No stored procedure configured"}
 
         # 🔥 HOME / AWAY AUTO
-        total_players = len(players)
-        
+        player_number = row["PlayerNumber"]
+        total_players = row["total_players"]
+
         if total_players == 2:
-            is_home = 1 if player_number == 1 else 0
+          is_home = 1 if player_number == 1 else 0
         else:
-            is_home = 1 if player_number in (1, 2) else 0
+          is_home = 1 if player_number in (1, 2) else 0
 
         print("SP:", sp_name)
         print("IS_HOME:", is_home)
