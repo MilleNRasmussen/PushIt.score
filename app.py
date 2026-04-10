@@ -753,23 +753,20 @@ def get_match_token(match_id: int):
 
 
 
-
-
 @app.post("/webhook")
 async def flic_webhook(request: Request):
     conn = get_conn()
     cur = conn.cursor()
 
     try:
+        # ---------- READ REQUEST ----------
         try:
             data = await request.json()
         except:
             data = {}
 
-        # 🔥 BUTTON ID
         button_id = request.headers.get("button-serial-number")
 
-        # 🔥 ROBUST CLICK TYPE (BODY + HEADER + LOWERCASE)
         click_type = (
             data.get("click_type")
             or request.headers.get("click_type")
@@ -780,23 +777,23 @@ async def flic_webhook(request: Request):
 
         click_type_clean = click_type.lower()
 
-        print("---- WEBHOOK ----")
-        print("BUTTON:", button_id)
-        print("CLICK RAW:", click_type)
+        print("---- WEBHOOK ----", flush=True)
+        print("BUTTON:", button_id, flush=True)
+        print("CLICK RAW:", click_type, flush=True)
 
         if not button_id:
             return {"error": "No button id"}
 
-        # 🔎 FIND MATCH + MATCHTYPE + PLAYER
+        # ---------- FIND MATCH ----------
         cur.execute("""
             SELECT 
                 mh.ID as match_id,
                 mt.StoredProcedureName,
                 mp.PlayerNumber,
                 (
-                 SELECT COUNT(*) 
-                 FROM MatchPlayers 
-                 WHERE MatchID = mh.ID
+                    SELECT COUNT(*) 
+                    FROM MatchPlayers 
+                    WHERE MatchID = mh.ID
                 ) as total_players
             FROM Users u
             JOIN MatchPlayers mp ON mp.PlayerID = u.ID
@@ -810,8 +807,6 @@ async def flic_webhook(request: Request):
 
         row = cur.fetchone()
 
-        print("ROW:", row)
-
         if not row:
             broadcast_flic(button_id)
             return {"status": "pairing"}
@@ -819,77 +814,84 @@ async def flic_webhook(request: Request):
         match_id = row["match_id"]
         sp_name = row["StoredProcedureName"]
         player_number = row["PlayerNumber"]
-
-        if not sp_name:
-            return {"error": "No stored procedure configured"}
-
-        # 🔥 HOME / AWAY AUTO
-        player_number = row["PlayerNumber"]
         total_players = row["total_players"]
 
+        # ---------- HOME / AWAY ----------
         if total_players == 2:
-          is_home = 1 if player_number == 1 else 0
+            is_home = 1 if player_number == 1 else 0
         else:
-          is_home = 1 if player_number in (1, 2) else 0
+            is_home = 1 if player_number in (1, 2) else 0
 
-        print("SP:", sp_name)
-        print("IS_HOME:", is_home)
+        print("MATCH:", match_id, flush=True)
+        print("SP:", sp_name, flush=True)
+        print("IS_HOME:", is_home, flush=True)
 
-       import time
+        # ---------- ROUTING ----------
+        if click_type_clean == "buttondoubleclick":
+            print("ACTION: UNDO", flush=True)
 
-# =====================================================
-# 🎯 ROUTING (ROBUST)
-# =====================================================
-    if click_type_clean == "buttondoubleclick":
-      print("ACTION: UNDO", flush=True)
-      print("CLICK CLEAN:", click_type_clean, flush=True)
-
-    cur.execute("""
-        UPDATE MatchDetailPoint
-        SET Deleted = 1
-        WHERE ID = (
-            SELECT ID FROM (
-                SELECT ID
-                FROM MatchDetailPoint
-                WHERE MatchHeaderID = %s
-                AND Deleted = 0
-                ORDER BY ID DESC
-                LIMIT 1
-            ) as tmp
-        )
-    """, (match_id,))
+            cur.execute("""
+                UPDATE MatchDetailPoint
+                SET Deleted = 1
+                WHERE ID = (
+                    SELECT ID FROM (
+                        SELECT ID
+                        FROM MatchDetailPoint
+                        WHERE MatchHeaderID = %s
+                        AND Deleted = 0
+                        ORDER BY ID DESC
+                        LIMIT 1
+                    ) as tmp
+                )
+            """, (match_id,))
 
 
-    elif click_type_clean == "buttonhold":
-    print("ACTION: CLOSE MATCH", flush=True)
-    print("CLICK CLEAN:", click_type_clean, flush=True)
+        elif click_type_clean == "buttonhold":
+            print("ACTION: CLOSE MATCH", flush=True)
 
-    cur.execute("""
-        UPDATE MatchHeader
-        SET Status = 'FinishedPending'
-        WHERE ID = %s
-    """, (match_id,))
-
-
-    elif click_type_clean == "buttonsingleclick":
-      print("CLICK CLEAN:", click_type_clean, flush=True)
-
-    # 🔥 VENT for double
-      time.sleep(0.35)
-
-      print("ACTION: SCORE", flush=True)
-
-      cur.callproc(sp_name, (button_id, click_type, is_home))
+            cur.execute("""
+                UPDATE MatchHeader
+                SET Status = 'FinishedPending'
+                WHERE ID = %s
+            """, (match_id,))
 
 
-    else:
-      print("UNKNOWN CLICK TYPE:", click_type, flush=True)
-    return {"error": "Unknown click type", "click_type": click_type}
+        elif click_type_clean == "buttonsingleclick":
+            print("ACTION: SCORE (delayed)", flush=True)
+
+            # 🔥 delay så double kan overtage
+            time.sleep(0.35)
+
+            cur.callproc(sp_name, (button_id, click_type, is_home))
 
 
-# ✅ commit SKAL være udenfor if
-    conn.commit()
-    return {"status": "ok"}
+        else:
+            print("UNKNOWN CLICK TYPE:", click_type, flush=True)
+            return {"error": "Unknown click type", "click_type": click_type}
+
+        # ---------- COMMIT ----------
+        conn.commit()
+        return {"status": "ok"}
+
+    except Exception as e:
+        print("ERROR:", e, flush=True)
+        conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
+
+
+
+
+
+
+
+
+
+
+
+
 
 @app.get("/matchtypes")
 def get_matchtypes():
