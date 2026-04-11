@@ -840,6 +840,8 @@ async def webhook_delete_point(request: Request):
     try:
         print("ENDPOINT: DELETE", flush=True)
 
+        print("MATCH ID:", data["match_id"], flush=True)
+
         button_id = request.headers.get("button-serial-number")
         if not button_id:
             return {"error": "No button id"}
