@@ -855,30 +855,20 @@ async def webhook_delete_point(request: Request):
             return {"status": "pairing"}
 
         cur.execute("""
+        cur.execute("""
         UPDATE MatchDetailPoint
         SET Deleted = 1
-        WHERE MatchHeaderID = %s
-        AND ID >= (
-          SELECT COALESCE(
-           (
-            SELECT ID
-            FROM MatchDetailPoint
-            WHERE MatchHeaderID = %s
-            AND Deleted = 0
-            AND ClosedRow = 0
-            ORDER BY ID DESC
-            LIMIT 1
-          ),
-          (
-            SELECT ID
-            FROM MatchDetailPoint
-            WHERE MatchHeaderID = %s
-            AND Deleted = 0
-            ORDER BY ID DESC
-            LIMIT 1
-          )
-          )
-          );
+        WHERE ID = (
+           SELECT ID FROM (
+             SELECT ID
+             FROM MatchDetailPoint
+             WHERE MatchHeaderID = %s
+             AND Deleted = 0
+             ORDER BY ID DESC
+           LIMIT 1
+        ) as tmp
+)
+""", (data["match_id"],))
             
         """, (data["match_id"],))
 
