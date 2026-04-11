@@ -855,7 +855,7 @@ async def webhook_delete_point(request: Request):
             return {"status": "pairing"}
 
         cur.execute("""
-        cur.execute("""
+        
         UPDATE MatchDetailPoint
         SET Deleted = 1
         WHERE ID = (
@@ -868,7 +868,7 @@ async def webhook_delete_point(request: Request):
            LIMIT 1
             ) as tmp
         ) 
-""", (data["match_id"],))
+
             
         """, (data["match_id"],))
 
