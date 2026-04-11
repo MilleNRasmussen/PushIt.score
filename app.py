@@ -866,8 +866,8 @@ async def webhook_delete_point(request: Request):
              AND Deleted = 0
              ORDER BY ID DESC
            LIMIT 1
-        ) as tmp
-)
+            ) as tmp
+        ) 
 """, (data["match_id"],))
             
         """, (data["match_id"],))
