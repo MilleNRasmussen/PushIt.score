@@ -903,14 +903,42 @@ async def webhook_end_game(request: Request):
             broadcast_flic(button_id)
             return {"status": "pairing"}
 
+        # 🔥 HENT MATCH + REGEL
         cur.execute("""
-            UPDATE MatchHeader
-            SET Status = 'FinishedPending'
-            WHERE ID = %s
+            SELECT 
+                m.HomeSet,
+                m.AwaySet,
+                mt.SetsToWin
+            FROM MatchHeader m
+            JOIN MatchType mt ON m.MatchTypeID = mt.ID
+            WHERE m.ID = %s
         """, (data["match_id"],))
 
+        row = cur.fetchone()
+
+        home_set = row["HomeSet"]
+        away_set = row["AwaySet"]
+        sets_to_win = row["SetsToWin"]
+
+        # 🔒 fallback hvis ikke defineret
+        if not sets_to_win:
+            status = "ManualPaused"
+        else:
+            # 🏆 check om kampen ER færdig
+            if home_set >= sets_to_win or away_set >= sets_to_win:
+                status = "FinishedPending"
+            else:
+                status = "ManualPaused"
+
+        # 🔥 UPDATE STATUS
+        cur.execute("""
+            UPDATE MatchHeader
+            SET Status = %s
+            WHERE ID = %s
+        """, (status, data["match_id"]))
+
         conn.commit()
-        return {"status": "ok"}
+        return {"status": status}
 
     except Exception as e:
         conn.rollback()
