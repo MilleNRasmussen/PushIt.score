@@ -808,8 +808,21 @@ async def webhook_point(request: Request):
         data = get_match_data(cur, button_id)
 
         if not data:
-            broadcast_flic(button_id)
-            return {"status": "pairing"}
+            # 🔥 tjek om button findes på bruger
+            cur.execute("""
+                SELECT Navn
+                FROM Users
+                WHERE ButtonID = %s
+            """, (button_id,))
+    
+           user = cur.fetchone()
+
+           if user:
+               broadcast_known(button_id, user["Navn"])
+               return {"status": "known"}
+
+           broadcast_flic(button_id)
+           return {"status": "pairing"}
 
 
         print("ENDPOINT: SP_InsertScore", flush=True)
@@ -850,9 +863,22 @@ async def webhook_delete_point(request: Request):
 
         print("MATCH ID:", data["match_id"], flush=True)
 
-        if not data:
-            broadcast_flic(button_id)
-            return {"status": "pairing"}
+          if not data:
+            # 🔥 tjek om button findes på bruger
+            cur.execute("""
+                SELECT Navn
+                FROM Users
+                WHERE ButtonID = %s
+            """, (button_id,))
+    
+           user = cur.fetchone()
+
+           if user:
+               broadcast_known(button_id, user["Navn"])
+               return {"status": "known"}
+
+           broadcast_flic(button_id)
+           return {"status": "pairing"}
 
         cur.execute("""
         
@@ -899,9 +925,22 @@ async def webhook_end_game(request: Request):
 
         data = get_match_data(cur, button_id)
 
-        if not data:
-            broadcast_flic(button_id)
-            return {"status": "pairing"}
+          if not data:
+            # 🔥 tjek om button findes på bruger
+            cur.execute("""
+                SELECT Navn
+                FROM Users
+                WHERE ButtonID = %s
+            """, (button_id,))
+    
+           user = cur.fetchone()
+
+           if user:
+               broadcast_known(button_id, user["Navn"])
+               return {"status": "known"}
+
+           broadcast_flic(button_id)
+           return {"status": "pairing"}
 
         # 🔥 HENT MATCH + REGEL
         cur.execute("""
