@@ -790,9 +790,10 @@ def get_match_data(cur, button_id):
         "is_home": is_home
     }
 
-# ===============================
-# 1. POINT
-# ===============================
+
+
+
+
 @app.post("/webhook_point")
 async def webhook_point(request: Request):
     conn = get_conn()
@@ -808,26 +809,24 @@ async def webhook_point(request: Request):
         data = get_match_data(cur, button_id)
 
         if not data:
-            # 🔥 tjek om button findes på bruger
             cur.execute("""
                 SELECT Navn
                 FROM Users
                 WHERE ButtonID = %s
             """, (button_id,))
-    
-           user = cur.fetchone()
 
-           if user:
-               broadcast_known(button_id, user["Navn"])
-               return {"status": "known"}
+            user = cur.fetchone()
 
-           broadcast_flic(button_id)
-           return {"status": "pairing"}
+            if user:
+                broadcast_known(button_id, user["Navn"])
+                return {"status": "known"}
 
+            broadcast_flic(button_id)
+            return {"status": "pairing"}
 
         print("ENDPOINT: SP_InsertScore", flush=True)
-        cur.callproc(
 
+        cur.callproc(
             "SP_InsertScore",
             (button_id, "single", data["is_home"])
         )
@@ -842,60 +841,52 @@ async def webhook_point(request: Request):
     finally:
         conn.close()
 
-# ===============================
-# 2. DELETE POINT
-# ===============================
-@app.post("/webhook_delete_point")
+
+
+    @app.post("/webhook_delete_point")
 async def webhook_delete_point(request: Request):
     conn = get_conn()
     cur = conn.cursor()
 
     try:
-        print("ENDPOINT: DELETE", flush=True)
-
-        
-
         button_id = request.headers.get("button-serial-number")
         if not button_id:
             return {"error": "No button id"}
 
         data = get_match_data(cur, button_id)
 
-        print("MATCH ID:", data["match_id"], flush=True)
-
-          if not data:
-            # 🔥 tjek om button findes på bruger
+        if not data:
             cur.execute("""
                 SELECT Navn
                 FROM Users
                 WHERE ButtonID = %s
             """, (button_id,))
-    
-           user = cur.fetchone()
 
-           if user:
-               broadcast_known(button_id, user["Navn"])
-               return {"status": "known"}
+            user = cur.fetchone()
 
-           broadcast_flic(button_id)
-           return {"status": "pairing"}
+            if user:
+                broadcast_known(button_id, user["Navn"])
+                return {"status": "known"}
+
+            broadcast_flic(button_id)
+            return {"status": "pairing"}
+
+        print("MATCH ID:", data["match_id"], flush=True)
+        print("ENDPOINT: DELETE", flush=True)
 
         cur.execute("""
-        
-        UPDATE MatchDetailPoint
-        SET Deleted = 1
-        WHERE ID = (
-           SELECT ID FROM (
-             SELECT ID
-             FROM MatchDetailPoint
-             WHERE MatchHeaderID = %s
-             AND Deleted = 0
-             ORDER BY ID DESC
-           LIMIT 1
-            ) as tmp
-        ) 
-
-            
+            UPDATE MatchDetailPoint
+            SET Deleted = 1
+            WHERE ID = (
+                SELECT ID FROM (
+                    SELECT ID
+                    FROM MatchDetailPoint
+                    WHERE MatchHeaderID = %s
+                    AND Deleted = 0
+                    ORDER BY ID DESC
+                    LIMIT 1
+                ) as tmp
+            )
         """, (data["match_id"],))
 
         conn.commit()
@@ -908,46 +899,47 @@ async def webhook_delete_point(request: Request):
     finally:
         conn.close()
 
-# ===============================
-# 3. END MATCH
-# ===============================
-@app.post("/webhook_end_game")
+
+    
+
+
+    @app.post("/webhook_end_game")
 async def webhook_end_game(request: Request):
     conn = get_conn()
     cur = conn.cursor()
 
     try:
-        print("ENDPOINT: END GAME", flush=True)
-
         button_id = request.headers.get("button-serial-number")
         if not button_id:
             return {"error": "No button id"}
 
         data = get_match_data(cur, button_id)
 
-          if not data:
-            # 🔥 tjek om button findes på bruger
+        if not data:
             cur.execute("""
                 SELECT Navn
                 FROM Users
                 WHERE ButtonID = %s
             """, (button_id,))
-    
-           user = cur.fetchone()
 
-           if user:
-               broadcast_known(button_id, user["Navn"])
-               return {"status": "known"}
+            user = cur.fetchone()
 
-           broadcast_flic(button_id)
-           return {"status": "pairing"}
+            if user:
+                broadcast_known(button_id, user["Navn"])
+                return {"status": "known"}
 
-        # 🔥 HENT MATCH + REGEL
+            broadcast_flic(button_id)
+            return {"status": "pairing"}
+
+        print("ENDPOINT: END GAME", flush=True)
+
+        # 🔥 hent match info
         cur.execute("""
-            SELECT 
+            SELECT
                 m.HomeSet,
                 m.AwaySet,
-                mt.SetsToWin
+                mt.SetsToWin,
+                m.PublicToken
             FROM MatchHeader m
             JOIN MatchType mt ON m.MatchTypeID = mt.ID
             WHERE m.ID = %s
@@ -955,21 +947,24 @@ async def webhook_end_game(request: Request):
 
         row = cur.fetchone()
 
+        if not row:
+            return {"error": "Match not found"}
+
         home_set = row["HomeSet"]
         away_set = row["AwaySet"]
         sets_to_win = row["SetsToWin"]
+        token = row["PublicToken"]
 
-        # 🔒 fallback hvis ikke defineret
+        # 🔒 fallback
         if not sets_to_win:
             status = "ManualPaused"
         else:
-            # 🏆 check om kampen ER færdig
             if home_set >= sets_to_win or away_set >= sets_to_win:
                 status = "FinishedPending"
             else:
                 status = "ManualPaused"
 
-        # 🔥 UPDATE STATUS
+        # 🔥 update
         cur.execute("""
             UPDATE MatchHeader
             SET Status = %s
@@ -977,6 +972,11 @@ async def webhook_end_game(request: Request):
         """, (status, data["match_id"]))
 
         conn.commit()
+
+        # 🔥 broadcast hvis færdig
+        if status == "FinishedPending" and token:
+            broadcast_match_end(token)
+
         return {"status": status}
 
     except Exception as e:
@@ -985,6 +985,14 @@ async def webhook_end_game(request: Request):
 
     finally:
         conn.close()
+
+
+
+
+
+
+
+
 
 
 @app.get("/matchtypes")
