@@ -843,7 +843,7 @@ async def webhook_point(request: Request):
 
 
 
-    @app.post("/webhook_delete_point")
+@app.post("/webhook_delete_point")
 async def webhook_delete_point(request: Request):
     conn = get_conn()
     cur = conn.cursor()
@@ -903,7 +903,7 @@ async def webhook_delete_point(request: Request):
     
 
 
-    @app.post("/webhook_end_game")
+@app.post("/webhook_end_game")
 async def webhook_end_game(request: Request):
     conn = get_conn()
     cur = conn.cursor()
