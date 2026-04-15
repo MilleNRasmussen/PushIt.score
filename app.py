@@ -1006,3 +1006,82 @@ def get_matchtypes():
     conn.close()
 
     return rows
+
+
+@app.get("/recent-matches")
+def recent_matches():
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT 
+            mh.ID,
+            mh.HomeSet,
+            mh.AwaySet,
+            mh.FinishedAt
+        FROM MatchHeader mh
+        WHERE mh.Status = 'Closed'
+        ORDER BY mh.ID DESC
+        LIMIT 20
+    """)
+
+    matches = cur.fetchall()
+
+    result = []
+
+    for m in matches:
+        # hent spillere
+        cur.execute("""
+            SELECT mp.PlayerNumber, u.Navn
+            FROM MatchPlayers mp
+            JOIN Users u ON u.ID = mp.PlayerID
+            WHERE mp.MatchID = %s
+            ORDER BY mp.PlayerNumber
+        """, (m["ID"],))
+
+        players = cur.fetchall()
+
+        if len(players) == 2:
+            home = [players[0]["Navn"]]
+            away = [players[1]["Navn"]]
+        else:
+            home = [p["Navn"] for p in players if p["PlayerNumber"] in (1,2)]
+            away = [p["Navn"] for p in players if p["PlayerNumber"] in (3,4)]
+
+        result.append({
+            "id": m["ID"],
+            "homePlayers": home,
+            "awayPlayers": away,
+            "homeSet": m["HomeSet"],
+            "awaySet": m["AwaySet"],
+            "playedAt": m["FinishedAt"]
+        })
+
+    conn.close()
+    return result
+
+
+
+@app.get("/match-points/{match_id}")
+def match_points(match_id: int):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT 
+            ID,
+            CASE 
+                WHEN IsHome = 1 THEN 'home'
+                ELSE 'away'
+            END as team,
+            Timestamp
+        FROM MatchDetailPoint
+        WHERE MatchHeaderID = %s
+        AND Deleted = 0
+        ORDER BY ID
+    """, (match_id,))
+
+    rows = cur.fetchall()
+    conn.close()
+
+    return rows
