@@ -1013,53 +1013,69 @@ def recent_matches():
     conn = get_conn()
     cur = conn.cursor()
 
-    cur.execute("""
-        SELECT 
-            mh.ID,
-            mh.HomeSet,
-            mh.AwaySet,
-            mh.FinishedAt
-        FROM MatchHeader mh
-        WHERE mh.Status = 'Closed'
-        ORDER BY mh.ID DESC
-        LIMIT 20
-    """)
-
-    matches = cur.fetchall()
-
-    result = []
-
-    for m in matches:
-        # hent spillere
+    try:
+        # hent matches
         cur.execute("""
-            SELECT mp.PlayerNumber, u.Navn
-            FROM MatchPlayers mp
-            JOIN Users u ON u.ID = mp.PlayerID
-            WHERE mp.MatchID = %s
-            ORDER BY mp.PlayerNumber
-        """, (m["ID"],))
+            SELECT ID
+            FROM MatchHeader
+            WHERE Status = 'Closed'
+            ORDER BY ID DESC
+            LIMIT 20
+        """)
 
-        players = cur.fetchall()
+        matches = cur.fetchall()
+        result = []
 
-        if len(players) == 2:
-            home = [players[0]["Navn"]]
-            away = [players[1]["Navn"]]
-        else:
-            home = [p["Navn"] for p in players if p["PlayerNumber"] in (1,2)]
-            away = [p["Navn"] for p in players if p["PlayerNumber"] in (3,4)]
+        for m in matches:
+            match_id = m["ID"]
 
-        result.append({
-            "id": m["ID"],
-            "homePlayers": home,
-            "awayPlayers": away,
-            "homeSet": m["HomeSet"],
-            "awaySet": m["AwaySet"],
-            "playedAt": m["FinishedAt"]
-        })
+            # 🔥 hent SENESTE score fra MatchDetailPoint
+            cur.execute("""
+                SELECT HomeSet, AwaySet, Timestamp
+                FROM MatchDetailPoint
+                WHERE MatchHeaderID = %s
+                AND Deleted = 0
+                ORDER BY ID DESC
+                LIMIT 1
+            """, (match_id,))
 
-    conn.close()
-    return result
+            last = cur.fetchone() or {}
 
+            # 🔥 hent spillere
+            cur.execute("""
+                SELECT mp.PlayerNumber, u.Navn
+                FROM MatchPlayers mp
+                JOIN Users u ON u.ID = mp.PlayerID
+                WHERE mp.MatchID = %s
+                ORDER BY mp.PlayerNumber
+            """, (match_id,))
+
+            players = cur.fetchall()
+
+            if len(players) == 2:
+                home = [players[0]["Navn"]]
+                away = [players[1]["Navn"]]
+            else:
+                home = [p["Navn"] for p in players if p["PlayerNumber"] in (1, 2)]
+                away = [p["Navn"] for p in players if p["PlayerNumber"] in (3, 4)]
+
+            result.append({
+                "id": match_id,
+                "homePlayers": home,
+                "awayPlayers": away,
+                "homeSet": last.get("HomeSet") or 0,
+                "awaySet": last.get("AwaySet") or 0,
+                "playedAt": last.get("Timestamp") or ""
+            })
+
+        return result
+
+    except Exception as e:
+        print("ERROR recent-matches:", e, flush=True)
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
 
 
 @app.get("/match-points/{match_id}")
