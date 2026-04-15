@@ -27,7 +27,10 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://pushit.games",
+        "https://www.pushit.games"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -1083,21 +1086,43 @@ def match_points(match_id: int):
     conn = get_conn()
     cur = conn.cursor()
 
-    cur.execute("""
-        SELECT 
-            ID,
-            CASE 
-                WHEN IsHome = 1 THEN 'home'
-                ELSE 'away'
-            END as team,
-            Timestamp
-        FROM MatchDetailPoint
-        WHERE MatchHeaderID = %s
-        AND Deleted = 0
-        ORDER BY ID
-    """, (match_id,))
+    try:
+        cur.execute("""
+            SELECT 
+                ID,
+                ButtonID_Home,
+                ButtonID_Away,
+                Timestamp
+            FROM MatchDetailPoint
+            WHERE MatchHeaderID = %s
+            AND Deleted = 0
+            ORDER BY ID
+        """, (match_id,))
 
-    rows = cur.fetchall()
-    conn.close()
+        rows = cur.fetchall()
+        result = []
 
-    return rows
+        for r in rows:
+            # 🔥 sikker team detection
+            if r.get("ButtonID_Home"):
+                team = "home"
+            elif r.get("ButtonID_Away"):
+                team = "away"
+            else:
+                # fallback (undgår crash)
+                team = "unknown"
+
+            result.append({
+                "id": r["ID"],
+                "team": team,
+                "timestamp": r.get("Timestamp")
+            })
+
+        return result
+
+    except Exception as e:
+        print("ERROR match-points:", e, flush=True)
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
