@@ -1082,46 +1082,57 @@ def recent_matches():
 
 
 @app.get("/match-points/{match_id}")
-def match_points(match_id: int):
+def get_match_points(match_id: int):
     conn = get_conn()
     cur = conn.cursor()
 
     try:
         cur.execute("""
-            SELECT 
+            SELECT
                 ID,
-                ButtonID_Home,
-                ButtonID_Away,
+                MatchHeaderID,
+                HomeSet,
+                AwaySet,
+                HomeGame,
+                AwayGame,
+                HomePoint,
+                AwayPoint,
                 Timestamp
             FROM MatchDetailPoint
             WHERE MatchHeaderID = %s
             AND Deleted = 0
-            ORDER BY ID
+            ORDER BY ID ASC
         """, (match_id,))
 
         rows = cur.fetchall()
-        result = []
+
+        # 🔥 sikker sortering
+        rows = sorted(rows, key=lambda x: x["ID"])
+
+        sets = {}
 
         for r in rows:
-            # 🔥 sikker team detection
-            if r.get("ButtonID_Home"):
-                team = "home"
-            elif r.get("ButtonID_Away"):
-                team = "away"
-            else:
-                # fallback (undgår crash)
-                team = "unknown"
+            set_no = r["HomeSet"] or 1
+            game_no = r["HomeGame"] or 1
 
-            result.append({
+            if set_no not in sets:
+                sets[set_no] = {}
+
+            if game_no not in sets[set_no]:
+                sets[set_no][game_no] = []
+
+            sets[set_no][game_no].append({
                 "id": r["ID"],
-                "team": team,
-                "timestamp": r.get("Timestamp")
+                "team": "home" if r["HomePoint"] > r["AwayPoint"] else "away",
+                "homePoint": r["HomePoint"],
+                "awayPoint": r["AwayPoint"],
+                "timestamp": r["Timestamp"]
             })
 
-        return result
+        return sets
 
     except Exception as e:
-        print("ERROR match-points:", e, flush=True)
+        print("ERROR:", e)
         return {"error": str(e)}
 
     finally:
