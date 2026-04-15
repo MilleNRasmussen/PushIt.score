@@ -1046,7 +1046,7 @@ def recent_matches():
 
             # 🔥 hent spillere
             cur.execute("""
-                SELECT mp.PlayerNumber, u.Navn
+                SELECT mp.PlayerNumber, u.Navn, mp.PlayerID
                 FROM MatchPlayers mp
                 JOIN Users u ON u.ID = mp.PlayerID
                 WHERE mp.MatchID = %s
