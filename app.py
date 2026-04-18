@@ -886,6 +886,8 @@ async def webhook_delete_point(request: Request):
                     FROM MatchDetailPoint
                     WHERE MatchHeaderID = %s
                     AND Deleted = 0
+                    AND HomeTeamPoint <> 0
+                    AND AwayTeamPoint <> 0
                     ORDER BY ID DESC
                     LIMIT 1
                 ) as tmp
