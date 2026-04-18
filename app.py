@@ -12,6 +12,18 @@ from fastapi.responses import StreamingResponse
 from fastapi.responses import JSONResponse
 from fastapi import WebSocket 
 
+# 🔥 global state
+hold_state = {
+    "home": 0,
+    "away": 0
+}
+
+COMBO_WINDOW = 1000  # ms
+
+
+
+
+
 app = FastAPI()
 
 # ---------- SSE CLIENTS ----------
@@ -913,19 +925,20 @@ hold_state = {
     "away": 0
 }
 
-COMBO_WINDOW = 1000  # ms
-
 
 @app.post("/webhook_end_game")
 async def webhook_end_game(request: Request):
     conn = get_conn()
     cur = conn.cursor()
+
     try:
         button_id = request.headers.get("button-serial-number")
         if not button_id:
             return {"error": "No button id"}
 
         data = get_match_data(cur, button_id)
+
+        # 🔁 pairing / unknown
         if not data:
             cur.execute("""
                 SELECT Navn
@@ -933,17 +946,25 @@ async def webhook_end_game(request: Request):
                 WHERE ButtonID = %s
             """, (button_id,))
             user = cur.fetchone()
+
             if user:
                 broadcast_known(button_id, user["Navn"])
                 return {"status": "known"}
+
             broadcast_flic(button_id)
             return {"status": "pairing"}
 
         match_id = data["match_id"]
-        team = data["team"]  # 🔥 kræver home/away fra din mapping
+        team = data["team"]  # "home" eller "away"
         now = int(time.time() * 1000)
 
         print("ENDPOINT: HOLD", team, flush=True)
+
+        # 🔥 reset gammel state
+        if now - hold_state["home"] > COMBO_WINDOW:
+            hold_state["home"] = 0
+        if now - hold_state["away"] > COMBO_WINDOW:
+            hold_state["away"] = 0
 
         # 🔥 registrer hold
         hold_state[team] = now
@@ -968,13 +989,11 @@ async def webhook_end_game(request: Request):
             and hold_state["away"]
             and abs(hold_state["home"] - hold_state["away"]) < COMBO_WINDOW
         ):
-            new_status = "Finished"
-
             cur.execute("""
                 UPDATE MatchHeader
                 SET Status = %s
                 WHERE ID = %s
-            """, (new_status, match_id))
+            """, ("finished", match_id))
 
             conn.commit()
 
@@ -986,27 +1005,32 @@ async def webhook_end_game(request: Request):
 
             return {"status": "closed"}
 
-        # 🔥 ellers: toggle pause
-        if current_status == "paused":
-            new_status = "active"
-        else:
-            new_status = "paused"
+        # 🔥 ellers: kun pause hvis den anden IKKE også holder
+        other_team = "away" if team == "home" else "home"
 
-        cur.execute("""
-            UPDATE MatchHeader
-            SET Status = %s
-            WHERE ID = %s
-        """, (new_status, match_id))
+        if hold_state[other_team] == 0:
+            # 👉 toggle pause
+            new_status = "active" if current_status == "paused" else "paused"
 
-        conn.commit()
+            cur.execute("""
+                UPDATE MatchHeader
+                SET Status = %s
+                WHERE ID = %s
+            """, (new_status, match_id))
 
-        return {"status": new_status}
+            conn.commit()
+
+            return {"status": new_status}
+
+        return {"status": "waiting_for_combo"}
 
     except Exception as e:
         conn.rollback()
         return {"error": str(e)}
+
     finally:
         conn.close()
+
 
 
 
