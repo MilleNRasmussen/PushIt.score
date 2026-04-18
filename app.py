@@ -907,94 +907,106 @@ async def webhook_delete_point(request: Request):
 
     
 
+# 🔥 global state (simpel version)
+hold_state = {
+    "home": 0,
+    "away": 0
+}
+
+COMBO_WINDOW = 1000  # ms
+
 
 @app.post("/webhook_end_game")
 async def webhook_end_game(request: Request):
     conn = get_conn()
     cur = conn.cursor()
-
     try:
         button_id = request.headers.get("button-serial-number")
         if not button_id:
             return {"error": "No button id"}
 
         data = get_match_data(cur, button_id)
-
         if not data:
             cur.execute("""
                 SELECT Navn
                 FROM Users
                 WHERE ButtonID = %s
             """, (button_id,))
-
             user = cur.fetchone()
-
             if user:
                 broadcast_known(button_id, user["Navn"])
                 return {"status": "known"}
-
             broadcast_flic(button_id)
             return {"status": "pairing"}
 
-        print("ENDPOINT: END GAME", flush=True)
+        match_id = data["match_id"]
+        team = data["team"]  # 🔥 kræver home/away fra din mapping
+        now = int(time.time() * 1000)
 
-        # 🔥 hent match info
+        print("ENDPOINT: HOLD", team, flush=True)
+
+        # 🔥 registrer hold
+        hold_state[team] = now
+
+        # 🔥 hent nuværende status
         cur.execute("""
-            SELECT
-                m.HomeSet,
-                m.AwaySet,
-                mt.SetsToWin,
-                m.PublicToken
-            FROM MatchHeader m
-            JOIN MatchType mt ON m.MatchTypeID = mt.ID
-            WHERE m.ID = %s
-        """, (data["match_id"],))
-
+            SELECT Status, PublicToken
+            FROM MatchHeader
+            WHERE ID = %s
+        """, (match_id,))
         row = cur.fetchone()
 
         if not row:
             return {"error": "Match not found"}
 
-        home_set = row["HomeSet"]
-        away_set = row["AwaySet"]
-        sets_to_win = row["SetsToWin"]
+        current_status = row["Status"]
         token = row["PublicToken"]
 
-        # 🔒 fallback
-        if not sets_to_win:
-            status = "ManualPaused"
-        else:
-            if home_set >= sets_to_win or away_set >= sets_to_win:
-                status = "FinishedPending"
-            else:
-                status = "ManualPaused"
+        # 💥 CHECK: begge holder → CLOSE
+        if (
+            hold_state["home"]
+            and hold_state["away"]
+            and abs(hold_state["home"] - hold_state["away"]) < COMBO_WINDOW
+        ):
+            new_status = "Finished"
 
-        # 🔥 update
+            cur.execute("""
+                UPDATE MatchHeader
+                SET Status = %s
+                WHERE ID = %s
+            """, (new_status, match_id))
+
+            conn.commit()
+
+            hold_state["home"] = 0
+            hold_state["away"] = 0
+
+            if token:
+                broadcast_match_end(token)
+
+            return {"status": "closed"}
+
+        # 🔥 ellers: toggle pause
+        if current_status == "paused":
+            new_status = "active"
+        else:
+            new_status = "paused"
+
         cur.execute("""
             UPDATE MatchHeader
             SET Status = %s
             WHERE ID = %s
-        """, (status, data["match_id"]))
+        """, (new_status, match_id))
 
         conn.commit()
 
-        # 🔥 broadcast hvis færdig
-        if status == "FinishedPending" and token:
-            broadcast_match_end(token)
-
-        return {"status": status}
+        return {"status": new_status}
 
     except Exception as e:
         conn.rollback()
         return {"error": str(e)}
-
     finally:
         conn.close()
-
-
-
-
-
 
 
 
