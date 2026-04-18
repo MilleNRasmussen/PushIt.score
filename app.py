@@ -880,7 +880,7 @@ async def webhook_delete_point(request: Request):
         cur.execute("""
             UPDATE MatchDetailPoint
             SET Deleted = 1
-            WHERE ID = (
+            WHERE ID >= (
                 SELECT ID FROM (
                     SELECT ID
                     FROM MatchDetailPoint
