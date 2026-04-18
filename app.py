@@ -991,6 +991,28 @@ async def webhook_end_game(request: Request):
         conn.close()
 
 
+@app.get("/matchtypes")
+def get_matchtypes():
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("SELECT ID, Name, PlayerPerTeamDefault FROM MatchType")
+
+    rows = cur.fetchall()
+    conn.close()
+
+    return rows
+
+
+
+
+
+
+
+
+
+
+
 @app.get("/recent-matches")
 def recent_matches():
     conn = get_conn()
