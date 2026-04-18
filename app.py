@@ -786,7 +786,7 @@ def get_match_data(cur, button_id):
         JOIN MatchHeader mh ON mh.ID = mp.MatchID
         JOIN MatchType mt ON mt.ID = mh.MatchTypeID
         WHERE u.ButtonID = %s
-        AND mh.Status IN ('Live','FinishedPending')
+        AND mh.Status IN ('Live','Paused','ManualPaused','FinishedPending')
         ORDER BY mh.ID DESC
         LIMIT 1
     """, (button_id,))
@@ -802,7 +802,7 @@ def get_match_data(cur, button_id):
 
     return {
         "match_id": row["match_id"],
-        "is_home": is_home
+        "team": "home" if is_home else "away"
     }
 
 
