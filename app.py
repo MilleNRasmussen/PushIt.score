@@ -919,46 +919,32 @@ async def webhook_delete_point(request: Request):
 
     
 
-# 🔥 global state (simpel version)
-hold_state = {
-    "home": 0,
-    "away": 0
-}
+
 
 
 @app.post("/webhook_end_game")
 async def webhook_end_game(request: Request):
+    print("WEBHOOK HIT", flush=True)
+
     conn = get_conn()
     cur = conn.cursor()
 
     try:
         button_id = request.headers.get("button-serial-number")
+        print("BUTTON:", button_id, flush=True)
+
         if not button_id:
             return {"error": "No button id"}
 
         data = get_match_data(cur, button_id)
+        print("DATA:", data, flush=True)
 
-        # 🔁 pairing / unknown
         if not data:
-            cur.execute("""
-                SELECT Navn
-                FROM Users
-                WHERE ButtonID = %s
-            """, (button_id,))
-            user = cur.fetchone()
-
-            if user:
-                broadcast_known(button_id, user["Navn"])
-                return {"status": "known"}
-
-            broadcast_flic(button_id)
-            return {"status": "pairing"}
+            return {"status": "no_match"}
 
         match_id = data["match_id"]
+        print("MATCH ID:", match_id, flush=True)
 
-        print("ENDPOINT: HOLD → TOGGLE PAUSE", flush=True)
-
-        # 🔥 hent nuværende status
         cur.execute("""
             SELECT Status
             FROM MatchHeader
@@ -970,12 +956,10 @@ async def webhook_end_game(request: Request):
             return {"error": "Match not found"}
 
         current_status = row["Status"]
+        print("STATUS BEFORE:", current_status, flush=True)
 
-        # 🔥 toggle pause
-        if current_status == "paused":
-            new_status = "active"
-        else:
-            new_status = "paused"
+        new_status = "active" if current_status == "paused" else "paused"
+        print("UPDATING TO:", new_status, flush=True)
 
         cur.execute("""
             UPDATE MatchHeader
@@ -988,12 +972,111 @@ async def webhook_end_game(request: Request):
         return {"status": new_status}
 
     except Exception as e:
+        print("ERROR:", str(e), flush=True)
         conn.rollback()
         return {"error": str(e)}
 
     finally:
         conn.close()
+💥 Hvad jeg tror sker (90% sikkert)
+👉 get_match_data() returnerer None
 
+→ derfor ryger du i:
+
+return {"status": "pairing"}
+→ og intet sker
+
+🎯 TL;DR
+Du skal finde ud af:
+
+Rammer webhook?
+
+Har du button_id?
+
+Finder den et match?
+
+👉 Send lige hvad du får i console (print output)
+så kan jeg pinpoint problemet på 10 sek 👍
+
+
+
+
+
+
+
+
+det er hold der er problemet
+
+ChatGPT19.22
+Ahhh 💥 godt – så er vi helt nede i den rigtige fejlkilde.
+
+👉 Hvis klik virker, men hold ikke gør
+→ så er problemet IKKE din backend
+→ det er hvordan Flic sender events til dit endpoint
+
+🎯 Det vigtige du skal vide
+Flic sender forskellige webhook endpoints pr. action:
+
+Action	Endpoint
+Click	/webhook_click
+Double click	/webhook_double_click
+Hold	/webhook_hold
+👉 Den rammer IKKE automatisk /webhook_end_game
+
+💥 Derfor sker der “ikke en kølle”
+Din kode virker – men:
+
+👉 Flic kalder ikke den route du tror
+
+✅ LØSNING
+Du skal enten:
+
+🔥 Option 1 (hurtigst fix)
+Brug det rigtige endpoint navn:
+
+@app.post("/webhook_hold")
+async def webhook_hold(request: Request):
+👉 og behold resten af din kode
+
+🔥 Option 2 (hvis du vil beholde navnet)
+Så skal du i Flic app / webhook config:
+
+👉 sætte hold action → /webhook_end_game
+
+🔍 Hurtig test
+Tilføj øverst:
+
+print("HOLD ENDPOINT HIT", flush=True)
+👉 Tryk hold
+
+Hvis du IKKE ser den:
+➡️ så rammer Flic ikke endpointet
+
+🎯 100% sikker debug
+Lav midlertidigt:
+
+@app.post("/webhook_hold")
+async def webhook_hold(request: Request):
+    print("HOLD TRIGGERED", flush=True)
+    return {"ok": True}
+👉 Hvis den ikke printer → problemet er Flic setup
+
+💡 Real talk
+Det her er en klassiker:
+
+👉 man tror “hold = samme endpoint”
+👉 men Flic splitter det op bagved
+
+🎯 TL;DR
+👉 din kode er fin
+👉 dit endpoint bliver ikke ramt
+👉 fix: brug /webhook_hold eller ret config
+
+Når den begynder at ramme:
+
+👉 så virker din pause toggle med det samme
+
+Sig lige hvad du ser i console – så tager vi næste step 🔥
 
 
 
