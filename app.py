@@ -841,11 +841,15 @@ async def webhook_point(request: Request):
 
         print("ENDPOINT: SP_InsertScore", flush=True)
 
+
+
+        is_home = 1 if data["team"] == "home" else 0
+
         cur.callproc(
             "SP_InsertScore",
-            (button_id, "single", data["is_home"])
+            (button_id, "single", is_home)
         )
-
+        
         conn.commit()
         return {"status": "ok"}
 
