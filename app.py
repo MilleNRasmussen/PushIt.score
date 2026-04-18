@@ -955,23 +955,12 @@ async def webhook_end_game(request: Request):
             return {"status": "pairing"}
 
         match_id = data["match_id"]
-        team = data["team"]  # "home" eller "away"
-        now = int(time.time() * 1000)
 
-        print("ENDPOINT: HOLD", team, flush=True)
-
-        # 🔥 reset gammel state
-        if now - hold_state["home"] > COMBO_WINDOW:
-            hold_state["home"] = 0
-        if now - hold_state["away"] > COMBO_WINDOW:
-            hold_state["away"] = 0
-
-        # 🔥 registrer hold
-        hold_state[team] = now
+        print("ENDPOINT: HOLD → TOGGLE PAUSE", flush=True)
 
         # 🔥 hent nuværende status
         cur.execute("""
-            SELECT Status, PublicToken
+            SELECT Status
             FROM MatchHeader
             WHERE ID = %s
         """, (match_id,))
@@ -981,48 +970,22 @@ async def webhook_end_game(request: Request):
             return {"error": "Match not found"}
 
         current_status = row["Status"]
-        token = row["PublicToken"]
 
-        # 💥 CHECK: begge holder → CLOSE
-        if (
-            hold_state["home"]
-            and hold_state["away"]
-            and abs(hold_state["home"] - hold_state["away"]) < COMBO_WINDOW
-        ):
-            cur.execute("""
-                UPDATE MatchHeader
-                SET Status = %s
-                WHERE ID = %s
-            """, ("finished", match_id))
+        # 🔥 toggle pause
+        if current_status == "paused":
+            new_status = "active"
+        else:
+            new_status = "paused"
 
-            conn.commit()
+        cur.execute("""
+            UPDATE MatchHeader
+            SET Status = %s
+            WHERE ID = %s
+        """, (new_status, match_id))
 
-            hold_state["home"] = 0
-            hold_state["away"] = 0
+        conn.commit()
 
-            if token:
-                broadcast_match_end(token)
-
-            return {"status": "closed"}
-
-        # 🔥 ellers: kun pause hvis den anden IKKE også holder
-        other_team = "away" if team == "home" else "home"
-
-        if hold_state[other_team] == 0:
-            # 👉 toggle pause
-            new_status = "active" if current_status == "paused" else "paused"
-
-            cur.execute("""
-                UPDATE MatchHeader
-                SET Status = %s
-                WHERE ID = %s
-            """, (new_status, match_id))
-
-            conn.commit()
-
-            return {"status": new_status}
-
-        return {"status": "waiting_for_combo"}
+        return {"status": new_status}
 
     except Exception as e:
         conn.rollback()
@@ -1030,7 +993,6 @@ async def webhook_end_game(request: Request):
 
     finally:
         conn.close()
-
 
 
 
