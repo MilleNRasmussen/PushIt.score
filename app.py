@@ -935,22 +935,31 @@ async def webhook_end_game(request: Request):
 
     try:
         button_id = request.headers.get("button-serial-number")
-        print("BUTTON:", button_id, flush=True)
-
         if not button_id:
             return {"error": "No button id"}
 
         data = get_match_data(cur, button_id)
-        print("DATA:", data, flush=True)
-
         if not data:
             return {"status": "no_match"}
 
         match_id = data["match_id"]
+        team = data["team"]  # "home" / "away"
+        now = int(time.time() * 1000)
 
-        # 🔥 hent nuværende status
+        print("TEAM:", team, flush=True)
+
+        # 🔥 reset gammel state
+        if now - hold_state["home"] > COMBO_WINDOW:
+            hold_state["home"] = 0
+        if now - hold_state["away"] > COMBO_WINDOW:
+            hold_state["away"] = 0
+
+        # 🔥 registrer hold
+        hold_state[team] = now
+
+        # 🔥 hent status
         cur.execute("""
-            SELECT Status
+            SELECT Status, PublicToken
             FROM MatchHeader
             WHERE ID = %s
         """, (match_id,))
@@ -960,9 +969,38 @@ async def webhook_end_game(request: Request):
             return {"error": "Match not found"}
 
         current_status = row["Status"]
-        print("STATUS BEFORE:", current_status, flush=True)
+        token = row["PublicToken"]
 
-        # 🔥 toggle pause (matcher din DB)
+        print("STATUS BEFORE:", current_status, flush=True)
+        print("STATE:", hold_state, flush=True)
+
+        # 💥 COMBO → CLOSE MATCH
+        if (
+            hold_state["home"]
+            and hold_state["away"]
+            and abs(hold_state["home"] - hold_state["away"]) < COMBO_WINDOW
+        ):
+            print("COMBO TRIGGERED → CLOSE", flush=True)
+
+            cur.execute("""
+                UPDATE MatchHeader
+                SET Status = 'Finished'
+                WHERE ID = %s
+            """, (match_id,))
+
+            conn.commit()
+
+            # reset
+            hold_state["home"] = 0
+            hold_state["away"] = 0
+
+            # broadcast close
+            if token:
+                broadcast_match_end(token)
+
+            return {"status": "closed"}
+
+        # 🔥 NORMAL TOGGLE (pause/resume)
         if current_status in ["Paused", "ManualPaused", "SystemPaused"]:
             new_status = "Live"
         else:
@@ -970,18 +1008,15 @@ async def webhook_end_game(request: Request):
 
         print("UPDATING TO:", new_status, flush=True)
 
-        # 🔥 update DB
         cur.execute("""
             UPDATE MatchHeader
             SET Status = %s
             WHERE ID = %s
         """, (new_status, match_id))
 
-        print("ROWS UPDATED:", cur.rowcount, flush=True)
-
         conn.commit()
 
-        # 🔥 VIGTIGT: broadcast til frontend
+        # 🔥 broadcast pause/resume
         for queue in clients:
             queue.put_nowait({
                 "type": "matchStatusChanged",
@@ -998,6 +1033,11 @@ async def webhook_end_game(request: Request):
 
     finally:
         conn.close()
+
+
+
+
+
 
 
 @app.get("/matchtypes")
