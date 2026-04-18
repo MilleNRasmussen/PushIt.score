@@ -943,8 +943,8 @@ async def webhook_end_game(request: Request):
             return {"status": "no_match"}
 
         match_id = data["match_id"]
-        print("MATCH ID:", match_id, flush=True)
 
+        # 🔥 hent status
         cur.execute("""
             SELECT Status
             FROM MatchHeader
@@ -958,7 +958,12 @@ async def webhook_end_game(request: Request):
         current_status = row["Status"]
         print("STATUS BEFORE:", current_status, flush=True)
 
-        new_status = "active" if current_status == "paused" else "paused"
+        # 🔥 toggle pause (tilpas til dine værdier!)
+        if current_status == "paused":
+            new_status = "active"
+        else:
+            new_status = "paused"
+
         print("UPDATING TO:", new_status, flush=True)
 
         cur.execute("""
@@ -978,18 +983,6 @@ async def webhook_end_game(request: Request):
 
     finally:
         conn.close()
-
-@app.get("/matchtypes")
-def get_matchtypes():
-    conn = get_conn()
-    cur = conn.cursor()
-
-    cur.execute("SELECT ID, Name, PlayerPerTeamDefault FROM MatchType")
-
-    rows = cur.fetchall()
-    conn.close()
-
-    return rows
 
 
 @app.get("/recent-matches")
