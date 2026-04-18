@@ -963,11 +963,13 @@ async def webhook_end_game(request: Request):
         print("STATUS BEFORE:", current_status, flush=True)
 
         # 🔥 toggle pause (tilpas til dine værdier!)
-        if current_status == "paused":
-            new_status = "active"
+        
+        
+        if current_status in ["Paused", "ManualPaused", "SystemPaused"]:
+             new_status = "Live"
         else:
-            new_status = "paused"
-
+             new_status = "Paused"
+        
         print("UPDATING TO:", new_status, flush=True)
 
         cur.execute("""
