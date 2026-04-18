@@ -948,7 +948,7 @@ async def webhook_end_game(request: Request):
 
         match_id = data["match_id"]
 
-        # 🔥 hent status
+        # 🔥 hent nuværende status
         cur.execute("""
             SELECT Status
             FROM MatchHeader
@@ -962,23 +962,32 @@ async def webhook_end_game(request: Request):
         current_status = row["Status"]
         print("STATUS BEFORE:", current_status, flush=True)
 
-        # 🔥 toggle pause (tilpas til dine værdier!)
-        
-        
+        # 🔥 toggle pause (matcher din DB)
         if current_status in ["Paused", "ManualPaused", "SystemPaused"]:
-             new_status = "Live"
+            new_status = "Live"
         else:
-             new_status = "Paused"
-        
+            new_status = "Paused"
+
         print("UPDATING TO:", new_status, flush=True)
 
+        # 🔥 update DB
         cur.execute("""
             UPDATE MatchHeader
             SET Status = %s
             WHERE ID = %s
         """, (new_status, match_id))
 
+        print("ROWS UPDATED:", cur.rowcount, flush=True)
+
         conn.commit()
+
+        # 🔥 VIGTIGT: broadcast til frontend
+        for queue in clients:
+            queue.put_nowait({
+                "type": "matchStatusChanged",
+                "match_id": match_id,
+                "status": new_status
+            })
 
         return {"status": new_status}
 
