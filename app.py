@@ -1188,3 +1188,44 @@ def get_match_points(match_id: int):
 
     finally:
         conn.close()
+
+
+
+@app.get("/match-timeline/{match_id}")
+def get_match_timeline(match_id: int):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT
+            HomeSet,
+            AwaySet,
+            HomePoint,
+            AwayPoint
+        FROM MatchDetailPoint
+        WHERE MatchHeaderID = %s
+        AND Deleted = 0
+        ORDER BY ID ASC
+    """, (match_id,))
+
+    rows = cur.fetchall()
+
+    sets = {}
+
+    for r in rows:
+        set_no = r["HomeSet"] or 1
+
+        # skip 0-0
+        if r["HomePoint"] == 0 and r["AwayPoint"] == 0:
+            continue
+
+        if set_no not in sets:
+            sets[set_no] = []
+
+        sets[set_no].append({
+            "home": r["HomePoint"],
+            "away": r["AwayPoint"]
+        })
+
+    conn.close()
+    return sets
