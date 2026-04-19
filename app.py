@@ -1113,6 +1113,31 @@ def recent_matches():
                 home = [p["Navn"] for p in players if p["PlayerNumber"] in (1, 2)]
                 away = [p["Navn"] for p in players if p["PlayerNumber"] in (3, 4)]
 
+
+
+            if len(players) == 2:
+                home = [{
+                    "name": players[0]["Navn"],
+                    "playerid": players[0]["PlayerID"]
+                }]
+                away = [{
+                    "name": players[1]["Navn"],
+                    "playerid": players[1]["PlayerID"]
+                }]
+            else:
+                home = [{
+                    "name": p["Navn"],
+                    "playerid": p["PlayerID"]
+                }
+                for p in players if p["PlayerNumber"] in (1, 2)
+                ]
+               away = [{
+                    "name": p["Navn"],
+                    "playerid": p["PlayerID"]
+               }
+               for p in players if p["PlayerNumber"] in (3, 4)
+               ]
+
             result.append({
                 "id": match_id,
                 "homePlayers": home,
