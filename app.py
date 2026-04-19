@@ -1174,9 +1174,9 @@ def get_match_points(match_id: int):
 
             sets[set_no][game_no].append({
                 "id": r["ID"],
-                "team": "home" if r["HomePoint"] > r["AwayPoint"] else "away",
-                "homePoint": r["HomePoint"],
-                "awayPoint": r["AwayPoint"],
+                "team": "home" if r["HomeTeamPoint"] > r["AwayTeamPoint"] else "away",
+                "homePoint": r["HomeTeamPoint"],
+                "awayPoint": r["AwayTeamPoint"],
                 "timestamp": r["Timestamp"]
             })
 
