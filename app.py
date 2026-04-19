@@ -1066,9 +1066,7 @@ def get_matchtypes():
 def recent_matches():
     conn = get_conn()
     cur = conn.cursor()
-
     try:
-        # hent matches
         cur.execute("""
             SELECT ID
             FROM MatchHeader
@@ -1076,14 +1074,14 @@ def recent_matches():
             ORDER BY ID DESC
             LIMIT 20
         """)
-
         matches = cur.fetchall()
+
         result = []
 
         for m in matches:
             match_id = m["ID"]
 
-            # 🔥 hent SENESTE score fra MatchDetailPoint
+            # sidste score
             cur.execute("""
                 SELECT HomeSet, AwaySet, Timestamp
                 FROM MatchDetailPoint
@@ -1092,10 +1090,9 @@ def recent_matches():
                 ORDER BY ID DESC
                 LIMIT 1
             """, (match_id,))
-
             last = cur.fetchone() or {}
 
-            # 🔥 hent spillere
+            # spillere
             cur.execute("""
                 SELECT mp.PlayerNumber, u.Navn, mp.PlayerID
                 FROM MatchPlayers mp
@@ -1103,18 +1100,9 @@ def recent_matches():
                 WHERE mp.MatchID = %s
                 ORDER BY mp.PlayerNumber
             """, (match_id,))
-
             players = cur.fetchall()
 
-            if len(players) == 2:
-                home = [players[0]["Navn"]]
-                away = [players[1]["Navn"]]
-            else:
-                home = [p["Navn"] for p in players if p["PlayerNumber"] in (1, 2)]
-                away = [p["Navn"] for p in players if p["PlayerNumber"] in (3, 4)]
-
-
-
+            # ✅ KUN DEN HER BLOK (fjernet string-versionen)
             if len(players) == 2:
                 home = [{
                     "name": players[0]["Navn"],
@@ -1125,18 +1113,21 @@ def recent_matches():
                     "playerid": players[1]["PlayerID"]
                 }]
             else:
-                home = [{
-                    "name": p["Navn"],
-                    "playerid": p["PlayerID"]
-                }
-                for p in players if p["PlayerNumber"] in (1, 2)
+                home = [
+                    {
+                        "name": p["Navn"],
+                        "playerid": p["PlayerID"]
+                    }
+                    for p in players if p["PlayerNumber"] in (1, 2)
                 ]
-               away = [{
-                    "name": p["Navn"],
-                    "playerid": p["PlayerID"]
-               }
-               for p in players if p["PlayerNumber"] in (3, 4)
-               ]
+
+                away = [
+                    {
+                        "name": p["Navn"],
+                        "playerid": p["PlayerID"]
+                    }
+                    for p in players if p["PlayerNumber"] in (3, 4)
+                ]
 
             result.append({
                 "id": match_id,
