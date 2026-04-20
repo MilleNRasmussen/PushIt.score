@@ -1152,7 +1152,6 @@ def recent_matches():
 def get_match_points(match_id: int):
     conn = get_conn()
     cur = conn.cursor()
-
     try:
         cur.execute("""
             SELECT
@@ -1173,14 +1172,18 @@ def get_match_points(match_id: int):
 
         rows = cur.fetchall()
 
-        # 🔥 sikker sortering
-        rows = sorted(rows, key=lambda x: x["ID"])
-
         sets = {}
 
         for r in rows:
-            set_no = r["HomeSet"] or 1
-            game_no = r["HomeGame"] or 1
+            # 🔥 FIX: brug HomeSet direkte (ingen "or 1")
+            set_no = r["HomeSet"]
+            game_no = r["HomeGame"]
+
+            # fallback hvis DB er null
+            if set_no is None:
+                set_no = 1
+            if game_no is None:
+                game_no = 1
 
             if set_no not in sets:
                 sets[set_no] = {}
@@ -1201,7 +1204,6 @@ def get_match_points(match_id: int):
     except Exception as e:
         print("ERROR:", e)
         return {"error": str(e)}
-
     finally:
         conn.close()
 
