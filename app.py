@@ -984,7 +984,7 @@ async def webhook_end_game(request: Request):
 
             cur.execute("""
                 UPDATE MatchHeader
-                SET Status = 'Finished'
+                SET Status = 'Closed'
                 WHERE ID = %s
             """, (match_id,))
 
