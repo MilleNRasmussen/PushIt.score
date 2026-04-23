@@ -1081,9 +1081,25 @@ def recent_matches():
         for m in matches:
             match_id = m["ID"]
 
-            # sidste score
+            # 🔥 HENT SET SCORES FRA VIEW
             cur.execute("""
-                SELECT HomeSet, AwaySet, Timestamp
+                SELECT 
+                    SetNo,
+                    HomeGames,
+                    AwayGames
+                FROM MatchSetScore
+                WHERE MatchHeaderID = %s
+                ORDER BY SetNo
+            """, (match_id,))
+            sets = cur.fetchall()
+
+            # 🔥 beregn samlet set score (2-1 osv)
+            home_sets = sum(1 for s in sets if s["HomeGames"] > s["AwayGames"])
+            away_sets = sum(1 for s in sets if s["AwayGames"] > s["HomeGames"])
+
+            # 🔥 timestamp (beholdt fra før)
+            cur.execute("""
+                SELECT Timestamp
                 FROM MatchDetailPoint
                 WHERE MatchHeaderID = %s
                 AND Deleted = 0
@@ -1092,7 +1108,7 @@ def recent_matches():
             """, (match_id,))
             last = cur.fetchone() or {}
 
-            # spillere
+            # 🔥 spillere (UÆNDRET)
             cur.execute("""
                 SELECT mp.PlayerNumber, u.Navn, mp.PlayerID
                 FROM MatchPlayers mp
@@ -1102,7 +1118,6 @@ def recent_matches():
             """, (match_id,))
             players = cur.fetchall()
 
-            # ✅ KUN DEN HER BLOK (fjernet string-versionen)
             if len(players) == 2:
                 home = [{
                     "name": players[0]["Navn"],
@@ -1120,7 +1135,6 @@ def recent_matches():
                     }
                     for p in players if p["PlayerNumber"] in (1, 2)
                 ]
-
                 away = [
                     {
                         "name": p["Navn"],
@@ -1133,8 +1147,17 @@ def recent_matches():
                 "id": match_id,
                 "homePlayers": home,
                 "awayPlayers": away,
-                "homeSet": last.get("HomeSet") or 0,
-                "awaySet": last.get("AwaySet") or 0,
+
+                # 🔥 NY: korrekt set resultat
+                "homeSet": home_sets,
+                "awaySet": away_sets,
+
+                # 🔥 BONUS (kan bruges senere i UI)
+                "sets": [
+                    f"{s['HomeGames']}-{s['AwayGames']}"
+                    for s in sets
+                ],
+
                 "playedAt": last.get("Timestamp") or ""
             })
 
@@ -1155,35 +1178,24 @@ def get_match_points(match_id: int):
     try:
         cur.execute("""
             SELECT
-                ID,
-                MatchHeaderID,
-                HomeSet,
-                AwaySet,
-                HomeGame,
-                AwayGame,
-                HomeTeamPoint,
-                AwayTeamPoint,
-                Timestamp
-            FROM MatchDetailPoint
+              MatchHeaderID,
+              SetNo,
+              GameNo,
+              HomeTeamPoint,
+              AwayTeamPoint,
+              Winner
+            FROM MatchGamesSet
             WHERE MatchHeaderID = %s
-            AND Deleted = 0
-            ORDER BY ID ASC
+            ORDER BY SetNo, GameNo;
         """, (match_id,))
-
         rows = cur.fetchall()
 
         sets = {}
 
         for r in rows:
-            # 🔥 FIX: brug HomeSet direkte (ingen "or 1")
-            set_no = r["HomeSet"]
-            game_no = r["HomeGame"]
-
-            # fallback hvis DB er null
-            if set_no is None:
-                set_no = 1
-            if game_no is None:
-                game_no = 1
+            # ✅ brug view felter (IKKE HomeSet/HomeGame)
+            set_no = r["SetNo"]
+            game_no = r["GameNo"]
 
             if set_no not in sets:
                 sets[set_no] = {}
@@ -1192,11 +1204,10 @@ def get_match_points(match_id: int):
                 sets[set_no][game_no] = []
 
             sets[set_no][game_no].append({
-                "id": r["ID"],
-                "team": "home" if r["HomeTeamPoint"] > r["AwayTeamPoint"] else "away",
+                # ❌ ID og Timestamp findes ikke i view → fjernet
+                "team": r["Winner"],  # ✅ brug direkte fra view
                 "homePoint": r["HomeTeamPoint"],
-                "awayPoint": r["AwayTeamPoint"],
-                "timestamp": r["Timestamp"]
+                "awayPoint": r["AwayTeamPoint"]
             })
 
         return sets
@@ -1204,9 +1215,9 @@ def get_match_points(match_id: int):
     except Exception as e:
         print("ERROR:", e)
         return {"error": str(e)}
+
     finally:
         conn.close()
-
 
 
 @app.get("/match-timeline/{match_id}")
