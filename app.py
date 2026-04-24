@@ -866,49 +866,49 @@ async def webhook_point(request: Request):
 async def webhook_delete_point(request: Request):
     conn = get_conn()
     cur = conn.cursor()
-
     try:
         button_id = request.headers.get("button-serial-number")
         if not button_id:
             return {"error": "No button id"}
 
         data = get_match_data(cur, button_id)
-
         if not data:
             cur.execute("""
                 SELECT Navn
                 FROM Users
                 WHERE ButtonID = %s
             """, (button_id,))
-
             user = cur.fetchone()
-
             if user:
                 broadcast_known(button_id, user["Navn"])
                 return {"status": "known"}
-
             broadcast_flic(button_id)
             return {"status": "pairing"}
 
         print("MATCH ID:", data["match_id"], flush=True)
         print("ENDPOINT: DELETE", flush=True)
 
+        team = data["team"]  # 🔥 vigtigt: "home" eller "away"
+
         cur.execute("""
             UPDATE MatchDetailPoint
             SET Deleted = 1
-            WHERE ID >= (
+            WHERE ID = (
                 SELECT ID FROM (
                     SELECT ID
                     FROM MatchDetailPoint
                     WHERE MatchHeaderID = %s
                     AND Deleted = 0
-                    AND HomeTeamPoint <> 0
-                    AND AwayTeamPoint <> 0
+                    AND (
+                        (%s = 'home' AND HomeTeamPoint > AwayTeamPoint)
+                        OR
+                        (%s = 'away' AND AwayTeamPoint > HomeTeamPoint)
+                    )
                     ORDER BY ID DESC
                     LIMIT 1
                 ) as tmp
             )
-        """, (data["match_id"],))
+        """, (data["match_id"], team, team))
 
         conn.commit()
         return {"status": "ok"}
@@ -919,7 +919,6 @@ async def webhook_delete_point(request: Request):
 
     finally:
         conn.close()
-
 
     
 
