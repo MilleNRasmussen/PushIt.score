@@ -813,7 +813,6 @@ def get_match_data(cur, button_id):
 async def webhook_point(request: Request):
     conn = get_conn()
     cur = conn.cursor()
-
     try:
         print("ENDPOINT: POINT", flush=True)
 
@@ -823,25 +822,27 @@ async def webhook_point(request: Request):
 
         data = get_match_data(cur, button_id)
 
-        if not data:
-            cur.execute("""
-                SELECT Navn
-                FROM Users
-                WHERE ButtonID = %s
-            """, (button_id,))
+        # 🔥 TILFØJET: altid tjek og broadcast
+        cur.execute("""
+            SELECT Navn
+            FROM Users
+            WHERE ButtonID = %s
+        """, (button_id,))
+        user = cur.fetchone()
 
-            user = cur.fetchone()
-
-            if user:
-                broadcast_known(button_id, user["Navn"])
-                return {"status": "known"}
-
+        if not user:
+            print("BROADCAST: pairing", flush=True)
             broadcast_flic(button_id)
             return {"status": "pairing"}
+        else:
+            print("BROADCAST: known", user["Navn"], flush=True)
+            broadcast_known(button_id, user["Navn"])
+
+        # 🔥 Hvis ingen match → stop efter broadcast
+        if not data:
+            return {"status": "known_no_match"}
 
         print("ENDPOINT: SP_InsertScore", flush=True)
-
-
 
         is_home = 1 if data["team"] == "home" else 0
 
@@ -849,7 +850,7 @@ async def webhook_point(request: Request):
             "SP_InsertScore",
             (button_id, "single", is_home)
         )
-        
+
         conn.commit()
         return {"status": "ok"}
 
