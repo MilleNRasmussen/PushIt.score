@@ -1241,20 +1241,39 @@ def get_match_timeline(match_id: int):
 
     sets = {}
 
-    for r in rows:
-        set_no = r["HomeSet"] or 1
 
-        # skip 0-0
-        if r["HomePoint"] == 0 and r["AwayPoint"] == 0:
-            continue
 
-        if set_no not in sets:
-            sets[set_no] = []
 
-        sets[set_no].append({
-            "home": r["HomePoint"],
-            "away": r["AwayPoint"]
-        })
+
+
+
+
+    
+
+# =====================================================
+# KPI
+# =====================================================
+
+@app.get("/KPI")
+def read_KPI():
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT 
+        Name,
+        KPI 
+        FROM SystemStatistics;
+    """)
+
+    KPI = cur.fetchall()
+
+    conn.close()
+
+    return KPI
+
+
 
     conn.close()
     return sets
