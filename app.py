@@ -1055,14 +1055,6 @@ def get_matchtypes():
 
 
 
-
-
-
-
-
-
-
-
 @app.get("/recent-matches")
 def recent_matches():
     conn = get_conn()
@@ -1082,37 +1074,41 @@ def recent_matches():
             match_id = m["ID"]
             match_type_id = m["MatchTypeID"]
 
-            # 🏓 BORDTENNIS
+            # 🏓 BORDTENNIS (FIXED)
             if match_type_id == 6:
                 cur.execute("""
                     SELECT 
                         HomeTeamPoint,
-                        AwayTeamPoint
+                        AwayTeamPoint,
+                        ClosedRow
                     FROM MatchDetailPoint
                     WHERE MatchHeaderID = %s
-                    AND ClosedRow = 1
                     AND Deleted = 0
                     ORDER BY ID
                 """, (match_id,))
 
-                sets = cur.fetchall()
+                rows = cur.fetchall()
+                sets_formatted = []
+
+                # 🔥 find set = rækken før ClosedRow
+                for i in range(1, len(rows)):
+                    if rows[i]["ClosedRow"] == 1:
+                        prev = rows[i - 1]
+                        sets_formatted.append(
+                            f"{prev['HomeTeamPoint']}-{prev['AwayTeamPoint']}"
+                        )
 
                 home_sets = sum(
-                    1 for s in sets
-                    if s["HomeTeamPoint"] > s["AwayTeamPoint"]
+                    1 for s in sets_formatted
+                    if int(s.split("-")[0]) > int(s.split("-")[1])
                 )
 
                 away_sets = sum(
-                    1 for s in sets
-                    if s["AwayTeamPoint"] > s["HomeTeamPoint"]
+                    1 for s in sets_formatted
+                    if int(s.split("-")[1]) > int(s.split("-")[0])
                 )
 
-                sets_formatted = [
-                    f"{s['HomeTeamPoint']}-{s['AwayTeamPoint']}"
-                    for s in sets
-                ]
-
-            # 🎾 PADEL / TENNIS
+            # 🎾 PADEL / TENNIS (UÆNDRET)
             else:
                 cur.execute("""
                     SELECT 
@@ -1196,7 +1192,7 @@ def recent_matches():
                 "awayPlayers": away,
                 "homeSet": home_sets,
                 "awaySet": away_sets,
-                "sets": sets_formatted,  # 🔥 FIX (brug den rigtige)
+                "sets": sets_formatted,
                 "playedAt": last.get("Timestamp") or "",
                 "matchTypeId": match_type_id
             })
@@ -1209,6 +1205,10 @@ def recent_matches():
 
     finally:
         conn.close()
+
+
+
+
 
 
 
