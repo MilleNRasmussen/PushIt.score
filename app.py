@@ -1062,6 +1062,7 @@ def get_matchtypes():
 
 
 
+
 @app.get("/recent-matches")
 def recent_matches():
     conn = get_conn()
@@ -1075,80 +1076,72 @@ def recent_matches():
             LIMIT 20
         """)
         matches = cur.fetchall()
-
         result = []
 
         for m in matches:
             match_id = m["ID"]
-            match_type_id = m["MatchTypeID"] 
+            match_type_id = m["MatchTypeID"]
 
-            # 🔥 HENT SET SCORES FRA VIEW
+            # 🏓 BORDTENNIS
+            if match_type_id == 6:
+                cur.execute("""
+                    SELECT 
+                        HomeTeamPoint,
+                        AwayTeamPoint
+                    FROM MatchDetailPoint
+                    WHERE MatchHeaderID = %s
+                    AND ClosedRow = 1
+                    AND Deleted = 0
+                    ORDER BY ID
+                """, (match_id,))
 
+                sets = cur.fetchall()
 
-     if match_type == 6:  # 🏓 bordtennis
+                home_sets = sum(
+                    1 for s in sets
+                    if s["HomeTeamPoint"] > s["AwayTeamPoint"]
+                )
 
-        cur.execute("""
-            SELECT 
-            HomeTeamPoint,
-            AwayTeamPoint
-            FROM MatchDetailPoint
-            WHERE MatchHeaderID = %s
-            AND ClosedRow = 1
-            AND Deleted = 0
-            ORDER BY ID
-        """, (match_id,))
+                away_sets = sum(
+                    1 for s in sets
+                    if s["AwayTeamPoint"] > s["HomeTeamPoint"]
+                )
 
-        sets = cur.fetchall()
+                sets_formatted = [
+                    f"{s['HomeTeamPoint']}-{s['AwayTeamPoint']}"
+                    for s in sets
+                ]
 
-        home_sets = sum(
-            1 for s in sets 
-            if s["HomeTeamPoint"] > s["AwayTeamPoint"]
-        )
+            # 🎾 PADEL / TENNIS
+            else:
+                cur.execute("""
+                    SELECT 
+                        SetNo,
+                        HomeGames,
+                        AwayGames
+                    FROM MatchSetScore
+                    WHERE MatchHeaderID = %s
+                    ORDER BY SetNo
+                """, (match_id,))
 
-        away_sets = sum(
-            1 for s in sets 
-            if s["AwayTeamPoint"] > s["HomeTeamPoint"]
-        )
+                sets = cur.fetchall()
 
-        sets_formatted = [
-            f"{s['HomeTeamPoint']}-{s['AwayTeamPoint']}"
-            for s in sets
-        ]
+                home_sets = sum(
+                    1 for s in sets
+                    if s["HomeGames"] > s["AwayGames"]
+                )
 
-    else:
+                away_sets = sum(
+                    1 for s in sets
+                    if s["AwayGames"] > s["HomeGames"]
+                )
 
+                sets_formatted = [
+                    f"{s['HomeGames']}-{s['AwayGames']}"
+                    for s in sets
+                ]
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-            
-            cur.execute("""
-                SELECT 
-                    SetNo,
-                    HomeGames,
-                    AwayGames
-                FROM MatchSetScore
-                WHERE MatchHeaderID = %s
-                ORDER BY SetNo
-            """, (match_id,))
-            sets = cur.fetchall()
-
-            # 🔥 beregn samlet set score (2-1 osv)
-            home_sets = sum(1 for s in sets if s["HomeGames"] > s["AwayGames"])
-            away_sets = sum(1 for s in sets if s["AwayGames"] > s["HomeGames"])
-
-            # 🔥 timestamp (beholdt fra før)
+            # 🔥 timestamp
             cur.execute("""
                 SELECT Timestamp
                 FROM MatchDetailPoint
@@ -1157,9 +1150,10 @@ def recent_matches():
                 ORDER BY ID DESC
                 LIMIT 1
             """, (match_id,))
+
             last = cur.fetchone() or {}
 
-            # 🔥 spillere (UÆNDRET)
+            # 🔥 spillere
             cur.execute("""
                 SELECT mp.PlayerNumber, u.Navn, mp.PlayerID
                 FROM MatchPlayers mp
@@ -1167,6 +1161,7 @@ def recent_matches():
                 WHERE mp.MatchID = %s
                 ORDER BY mp.PlayerNumber
             """, (match_id,))
+
             players = cur.fetchall()
 
             if len(players) == 2:
@@ -1186,6 +1181,7 @@ def recent_matches():
                     }
                     for p in players if p["PlayerNumber"] in (1, 2)
                 ]
+
                 away = [
                     {
                         "name": p["Navn"],
@@ -1198,19 +1194,11 @@ def recent_matches():
                 "id": match_id,
                 "homePlayers": home,
                 "awayPlayers": away,
-
-                # 🔥 NY: korrekt set resultat
                 "homeSet": home_sets,
                 "awaySet": away_sets,
-
-                # 🔥 BONUS (kan bruges senere i UI)
-                "sets": [
-                    f"{s['HomeGames']}-{s['AwayGames']}"
-                    for s in sets
-                ],
-
+                "sets": sets_formatted,  # 🔥 FIX (brug den rigtige)
                 "playedAt": last.get("Timestamp") or "",
-                "matchTypeId": match_type_id 
+                "matchTypeId": match_type_id
             })
 
         return result
@@ -1221,6 +1209,11 @@ def recent_matches():
 
     finally:
         conn.close()
+
+
+
+
+
 
 
 @app.get("/match-points/{match_id}")
