@@ -1083,6 +1083,56 @@ def recent_matches():
             match_type_id = m["MatchTypeID"] 
 
             # 🔥 HENT SET SCORES FRA VIEW
+
+
+     if match_type == 6:  # 🏓 bordtennis
+
+        cur.execute("""
+            SELECT 
+            HomeTeamPoint,
+            AwayTeamPoint
+            FROM MatchDetailPoint
+            WHERE MatchHeaderID = %s
+            AND ClosedRow = 1
+            AND Deleted = 0
+            ORDER BY ID
+        """, (match_id,))
+
+        sets = cur.fetchall()
+
+        home_sets = sum(
+            1 for s in sets 
+            if s["HomeTeamPoint"] > s["AwayTeamPoint"]
+        )
+
+        away_sets = sum(
+            1 for s in sets 
+            if s["AwayTeamPoint"] > s["HomeTeamPoint"]
+        )
+
+        sets_formatted = [
+            f"{s['HomeTeamPoint']}-{s['AwayTeamPoint']}"
+            for s in sets
+        ]
+
+    else:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            
             cur.execute("""
                 SELECT 
                     SetNo,
