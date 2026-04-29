@@ -1068,7 +1068,7 @@ def recent_matches():
     cur = conn.cursor()
     try:
         cur.execute("""
-            SELECT ID
+            SELECT ID, MatchTypeID
             FROM MatchHeader
             WHERE Status = 'Closed'
             ORDER BY ID DESC
@@ -1080,6 +1080,7 @@ def recent_matches():
 
         for m in matches:
             match_id = m["ID"]
+            match_type_id = m["MatchTypeID"] 
 
             # 🔥 HENT SET SCORES FRA VIEW
             cur.execute("""
@@ -1159,6 +1160,7 @@ def recent_matches():
                 ],
 
                 "playedAt": last.get("Timestamp") or ""
+                "matchTypeId": match_type_id 
             })
 
         return result
