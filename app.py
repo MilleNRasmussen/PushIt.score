@@ -1159,7 +1159,7 @@ def recent_matches():
                     for s in sets
                 ],
 
-                "playedAt": last.get("Timestamp") or ""
+                "playedAt": last.get("Timestamp") or "",
                 "matchTypeId": match_type_id 
             })
 
