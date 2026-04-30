@@ -1068,79 +1068,71 @@ def recent_matches():
             ORDER BY ID DESC
             LIMIT 20
         """)
-
         matches = cur.fetchall()
+
         result = []
 
         for m in matches:
             match_id = m["ID"]
             match_type_id = m["MatchTypeID"]
 
+            # 🔥 HENT POINTS (RAW – frontend bruger dem)
+            cur.execute("""
+                SELECT 
+                    HomeTeamPoint,
+                    AwayTeamPoint,
+                    HomeSet,
+                    AwaySet,
+                    ClosedRow
+                FROM MatchDetailPoint
+                WHERE MatchHeaderID = %s
+                AND Deleted = 0
+                ORDER BY ID
+            """, (match_id,))
+            rows = cur.fetchall()
+
             # =========================
             # 🏓 BORDTENNIS
             # =========================
             if match_type_id == 6:
-                cur.execute("""
-                    SELECT 
-                        HomeTeamPoint,
-                        AwayTeamPoint,
-                        ClosedRow
-                    FROM MatchDetailPoint
-                    WHERE MatchHeaderID = %s
-                    AND Deleted = 0
-                    ORDER BY ID
-                """, (match_id,))
-
-                rows = cur.fetchall()
-
-                sets = {}
-                current_set = 1
-                game = []
+                sets_formatted = []
+                seen_sets = set()
 
                 for r in rows:
-                    game.append({
-                        "homePoint": r["HomeTeamPoint"] or 0,
-                        "awayPoint": r["AwayTeamPoint"] or 0,
-                        "team": "home" if (r["HomeTeamPoint"] or 0) > (r["AwayTeamPoint"] or 0) else "away"
-                    })
+                    key = (r["HomeSet"], r["AwaySet"])
 
-                    if r["ClosedRow"] == 1:
-                        if game:
-                            if current_set not in sets:
-                                sets[current_set] = {}
-
-                            sets[current_set][1] = game
-
-                        game = []
-                        current_set += 1
-
-                # 🔥 set scores
-                sets_formatted = []
-
-                for set_no, games in sets.items():
-                    game_data = games.get(1, [])
-                    if not game_data:
+                    # skip duplicates
+                    if key in seen_sets:
                         continue
 
-                    last = game_data[-1]
+                    # 🔥 find sidste point i dette set (ikke reset)
+                    cur.execute("""
+                        SELECT HomeTeamPoint, AwayTeamPoint
+                        FROM MatchDetailPoint
+                        WHERE MatchHeaderID = %s
+                        AND HomeSet = %s
+                        AND AwaySet = %s
+                        AND Deleted = 0
+                        AND NOT (HomeTeamPoint = 0 AND AwayTeamPoint = 0)
+                        ORDER BY ID DESC
+                        LIMIT 1
+                    """, (match_id, r["HomeSet"], r["AwaySet"]))
 
-                    home = last.get("homePoint", 0)
-                    away = last.get("awayPoint", 0)
+                    last = cur.fetchone()
 
-                    sets_formatted.append(f"{home}-{away}")
+                    if last:
+                        sets_formatted.append(
+                            f"{last['HomeTeamPoint']}-{last['AwayTeamPoint']}"
+                        )
 
-                home_sets = sum(
-                    1 for s in sets_formatted
-                    if int(s.split("-")[0]) > int(s.split("-")[1])
-                )
+                    seen_sets.add(key)
 
-                away_sets = sum(
-                    1 for s in sets_formatted
-                    if int(s.split("-")[1]) > int(s.split("-")[0])
-                )
+                # 🔥 korrekt antal sets (fra DB – ikke beregnet)
+                home_sets = max((r["HomeSet"] for r in rows), default=0)
+                away_sets = max((r["AwaySet"] for r in rows), default=0)
 
             # =========================
-            # 🎾 PADEL / TENNIS
+            # 🎾 PADEL / TENNIS / ETC
             # =========================
             else:
                 cur.execute("""
@@ -1152,30 +1144,23 @@ def recent_matches():
                     WHERE MatchHeaderID = %s
                     ORDER BY SetNo
                 """, (match_id,))
-
-                sets_db = cur.fetchall()
+                sets = cur.fetchall()
 
                 home_sets = sum(
-                    1 for s in sets_db
+                    1 for s in sets
                     if s["HomeGames"] > s["AwayGames"]
                 )
-
                 away_sets = sum(
-                    1 for s in sets_db
+                    1 for s in sets
                     if s["AwayGames"] > s["HomeGames"]
                 )
 
                 sets_formatted = [
                     f"{s['HomeGames']}-{s['AwayGames']}"
-                    for s in sets_db
+                    for s in sets
                 ]
 
-                # 🔥 padel points (behold din eksisterende struktur hvis du har en)
-                sets = {}
-
-            # =========================
-            # 🕒 TIMESTAMP
-            # =========================
+            # 🔥 timestamp
             cur.execute("""
                 SELECT Timestamp
                 FROM MatchDetailPoint
@@ -1184,12 +1169,9 @@ def recent_matches():
                 ORDER BY ID DESC
                 LIMIT 1
             """, (match_id,))
-
             last = cur.fetchone() or {}
 
-            # =========================
-            # 👥 PLAYERS
-            # =========================
+            # 🔥 spillere
             cur.execute("""
                 SELECT mp.PlayerNumber, u.Navn, mp.PlayerID
                 FROM MatchPlayers mp
@@ -1197,7 +1179,6 @@ def recent_matches():
                 WHERE mp.MatchID = %s
                 ORDER BY mp.PlayerNumber
             """, (match_id,))
-
             players = cur.fetchall()
 
             if len(players) == 2:
@@ -1217,7 +1198,6 @@ def recent_matches():
                     }
                     for p in players if p["PlayerNumber"] in (1, 2)
                 ]
-
                 away = [
                     {
                         "name": p["Navn"],
@@ -1226,9 +1206,7 @@ def recent_matches():
                     for p in players if p["PlayerNumber"] in (3, 4)
                 ]
 
-            # =========================
-            # 📦 RESULT
-            # =========================
+            # 🔥 build response
             result.append({
                 "id": match_id,
                 "homePlayers": home,
@@ -1236,7 +1214,6 @@ def recent_matches():
                 "homeSet": home_sets,
                 "awaySet": away_sets,
                 "sets": sets_formatted,
-                "points": sets,  # 🔥 unified format til frontend
                 "playedAt": last.get("Timestamp") or "",
                 "matchTypeId": match_type_id
             })
