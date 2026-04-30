@@ -1242,61 +1242,95 @@ def get_match_points(match_id: int):
     conn = get_conn()
     cur = conn.cursor()
     try:
+        # hent match type
         cur.execute("""
-            SELECT
-              MatchHeaderID,
-              SetNo,
-              GameNo,
-              HomeTeamPoint,
-              AwayTeamPoint,
-              Winner
-            FROM MatchGamesSet
-            WHERE MatchHeaderID = %s
-            ORDER BY SetNo, GameNo, MatchHeaderID
+            SELECT MatchTypeID
+            FROM MatchHeader
+            WHERE ID = %s
         """, (match_id,))
+        match = cur.fetchone()
 
-        rows = cur.fetchall()
+        if not match:
+            return {}
+
+        match_type = match["MatchTypeID"]
 
         sets = {}
 
-        for r in rows:
-            set_no = int(r["SetNo"] or 1)
-            game_no = int(r["GameNo"] or 1)
+        # 🏓 BORDTENNIS
+        if match_type == 6:
+            cur.execute("""
+                SELECT
+                    HomeTeamPoint,
+                    AwayTeamPoint,
+                    HomeSet
+                FROM MatchDetailPoint
+                WHERE MatchHeaderID = %s
+                AND Deleted = 0
+                ORDER BY ID
+            """, (match_id,))
 
-            if set_no not in sets:
-                sets[set_no] = {}
+            rows = cur.fetchall()
 
-            if game_no not in sets[set_no]:
-                sets[set_no][game_no] = []
+            for r in rows:
+                set_no = (r["HomeSet"] or 0) + 1
 
-            home = r["HomeTeamPoint"] or 0
-            away = r["AwayTeamPoint"] or 0
+                if set_no not in sets:
+                    sets[set_no] = {}
 
-            # 🔥 vigtig fix: fallback hvis Winner mangler
-            team = r["Winner"]
-            if not team:
-                if home > away:
-                    team = "home"
-                elif away > home:
-                    team = "away"
-                else:
-                    team = "home"  # fallback (ligegyldigt i praksis)
+                if 1 not in sets[set_no]:
+                    sets[set_no][1] = []
 
-            sets[set_no][game_no].append({
-                "team": team,
-                "homePoint": home,
-                "awayPoint": away
-            })
+                home = r["HomeTeamPoint"] or 0
+                away = r["AwayTeamPoint"] or 0
+
+                sets[set_no][1].append({
+                    "homePoint": home,
+                    "awayPoint": away,
+                    "team": "home" if home > away else "away"
+                })
+
+        # 🎾 PADEL / TENNIS
+        else:
+            cur.execute("""
+                SELECT
+                  SetNo,
+                  GameNo,
+                  HomeTeamPoint,
+                  AwayTeamPoint,
+                  Winner
+                FROM MatchGamesSet
+                WHERE MatchHeaderID = %s
+                ORDER BY SetNo, GameNo, ID
+            """, (match_id,))
+
+            rows = cur.fetchall()
+
+            for r in rows:
+                set_no = int(r["SetNo"] or 1)
+                game_no = int(r["GameNo"] or 1)
+
+                if set_no not in sets:
+                    sets[set_no] = {}
+
+                if game_no not in sets[set_no]:
+                    sets[set_no][game_no] = []
+
+                home = r["HomeTeamPoint"] or 0
+                away = r["AwayTeamPoint"] or 0
+
+                team = r["Winner"] or ("home" if home > away else "away")
+
+                sets[set_no][game_no].append({
+                    "homePoint": home,
+                    "awayPoint": away,
+                    "team": team
+                })
 
         return sets
 
-    except Exception as e:
-        print("ERROR match-points:", e, flush=True)
-        return {"error": str(e)}
-
     finally:
         conn.close()
-
 
 @app.get("/match-timeline/{match_id}")
 def get_match_timeline(match_id: int):
