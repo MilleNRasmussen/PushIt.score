@@ -1289,7 +1289,45 @@ def get_match_timeline(match_id: int):
 
 
 
+@app.get("/match-points-tabletennis/{match_id}")
+def get_tabletennis_points(match_id: int):
+    conn = get_conn()
+    cur = conn.cursor()
 
+    cur.execute("""
+        SELECT
+            HomeSet,
+            HomeTeamPoint,
+            AwayTeamPoint,
+            ClosedRow
+        FROM MatchDetailPoint
+        WHERE MatchHeaderID = %s
+        AND Deleted = 0
+        ORDER BY ID
+    """, (match_id,))
+
+    rows = cur.fetchall()
+
+    sets = {}
+    current_set = 1
+    sets[current_set] = []
+
+    for r in rows:
+        sets[current_set].append({
+            "home": r["HomeTeamPoint"],
+            "away": r["AwayTeamPoint"]
+        })
+
+        # 🔥 NØGLEN
+        if r["ClosedRow"] == 1:
+            current_set += 1
+            sets[current_set] = []
+
+    # fjern evt tom sidste set
+    if len(sets.get(current_set, [])) == 0:
+        sets.pop(current_set, None)
+
+    return sets
 
 
 
