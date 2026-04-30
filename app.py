@@ -1252,16 +1252,16 @@ def get_match_points(match_id: int):
               Winner
             FROM MatchGamesSet
             WHERE MatchHeaderID = %s
-            ORDER BY SetNo, GameNo;
+            ORDER BY SetNo, GameNo, ID
         """, (match_id,))
+
         rows = cur.fetchall()
 
         sets = {}
 
         for r in rows:
-            # ✅ brug view felter (IKKE HomeSet/HomeGame)
-            set_no = r["SetNo"]
-            game_no = r["GameNo"]
+            set_no = int(r["SetNo"] or 1)
+            game_no = int(r["GameNo"] or 1)
 
             if set_no not in sets:
                 sets[set_no] = {}
@@ -1269,17 +1269,29 @@ def get_match_points(match_id: int):
             if game_no not in sets[set_no]:
                 sets[set_no][game_no] = []
 
+            home = r["HomeTeamPoint"] or 0
+            away = r["AwayTeamPoint"] or 0
+
+            # 🔥 vigtig fix: fallback hvis Winner mangler
+            team = r["Winner"]
+            if not team:
+                if home > away:
+                    team = "home"
+                elif away > home:
+                    team = "away"
+                else:
+                    team = "home"  # fallback (ligegyldigt i praksis)
+
             sets[set_no][game_no].append({
-                # ❌ ID og Timestamp findes ikke i view → fjernet
-                "team": r["Winner"],  # ✅ brug direkte fra view
-                "homePoint": r["HomeTeamPoint"],
-                "awayPoint": r["AwayTeamPoint"]
+                "team": team,
+                "homePoint": home,
+                "awayPoint": away
             })
 
         return sets
 
     except Exception as e:
-        print("ERROR:", e)
+        print("ERROR match-points:", e, flush=True)
         return {"error": str(e)}
 
     finally:
