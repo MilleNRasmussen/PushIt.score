@@ -1059,7 +1059,6 @@ def get_matchtypes():
 def recent_matches():
     conn = get_conn()
     cur = conn.cursor()
-
     try:
         cur.execute("""
             SELECT ID, MatchTypeID
@@ -1069,71 +1068,47 @@ def recent_matches():
             LIMIT 20
         """)
         matches = cur.fetchall()
-
         result = []
 
         for m in matches:
             match_id = m["ID"]
             match_type_id = m["MatchTypeID"]
 
-            # 🔥 HENT POINTS (RAW – frontend bruger dem)
-            cur.execute("""
-                SELECT 
-                    HomeTeamPoint,
-                    AwayTeamPoint,
-                    HomeSet,
-                    AwaySet,
-                    ClosedRow
-                FROM MatchDetailPoint
-                WHERE MatchHeaderID = %s
-                AND Deleted = 0
-                ORDER BY ID
-            """, (match_id,))
-            rows = cur.fetchall()
-
-            # =========================
-            # 🏓 BORDTENNIS
-            # =========================
+            # 🏓 BORDTENNIS (FIXED)
             if match_type_id == 6:
+                cur.execute("""
+                    SELECT 
+                        HomeTeamPoint,
+                        AwayTeamPoint,
+                        ClosedRow
+                    FROM MatchDetailPoint
+                    WHERE MatchHeaderID = %s
+                    AND Deleted = 0
+                    ORDER BY ID
+                """, (match_id,))
+
+                rows = cur.fetchall()
                 sets_formatted = []
-                seen_sets = set()
 
-                for r in rows:
-                    key = (r["HomeSet"], r["AwaySet"])
-
-                    # skip duplicates
-                    if key in seen_sets:
-                        continue
-
-                    # 🔥 find sidste point i dette set (ikke reset)
-                    cur.execute("""
-                        SELECT HomeTeamPoint, AwayTeamPoint
-                        FROM MatchDetailPoint
-                        WHERE MatchHeaderID = %s
-                        AND HomeSet = %s
-                        AND AwaySet = %s
-                        AND Deleted = 0
-                        AND NOT (HomeTeamPoint = 0 AND AwayTeamPoint = 0)
-                        ORDER BY ID DESC
-                        LIMIT 1
-                    """, (match_id, r["HomeSet"], r["AwaySet"]))
-
-                    last = cur.fetchone()
-
-                    if last:
+                # 🔥 find set = rækken før ClosedRow
+                for i in range(1, len(rows)):
+                    if rows[i]["ClosedRow"] == 1:
+                        prev = rows[i - 1]
                         sets_formatted.append(
-                            f"{last['HomeTeamPoint']}-{last['AwayTeamPoint']}"
+                            f"{prev['HomeTeamPoint']}-{prev['AwayTeamPoint']}"
                         )
 
-                    seen_sets.add(key)
+                home_sets = sum(
+                    1 for s in sets_formatted
+                    if int(s.split("-")[0]) > int(s.split("-")[1])
+                )
 
-                # 🔥 korrekt antal sets (fra DB – ikke beregnet)
-                home_sets = max((r["HomeSet"] for r in rows), default=0)
-                away_sets = max((r["AwaySet"] for r in rows), default=0)
+                away_sets = sum(
+                    1 for s in sets_formatted
+                    if int(s.split("-")[1]) > int(s.split("-")[0])
+                )
 
-            # =========================
-            # 🎾 PADEL / TENNIS / ETC
-            # =========================
+            # 🎾 PADEL / TENNIS (UÆNDRET)
             else:
                 cur.execute("""
                     SELECT 
@@ -1144,12 +1119,14 @@ def recent_matches():
                     WHERE MatchHeaderID = %s
                     ORDER BY SetNo
                 """, (match_id,))
+
                 sets = cur.fetchall()
 
                 home_sets = sum(
                     1 for s in sets
                     if s["HomeGames"] > s["AwayGames"]
                 )
+
                 away_sets = sum(
                     1 for s in sets
                     if s["AwayGames"] > s["HomeGames"]
@@ -1169,6 +1146,7 @@ def recent_matches():
                 ORDER BY ID DESC
                 LIMIT 1
             """, (match_id,))
+
             last = cur.fetchone() or {}
 
             # 🔥 spillere
@@ -1179,6 +1157,7 @@ def recent_matches():
                 WHERE mp.MatchID = %s
                 ORDER BY mp.PlayerNumber
             """, (match_id,))
+
             players = cur.fetchall()
 
             if len(players) == 2:
@@ -1198,6 +1177,7 @@ def recent_matches():
                     }
                     for p in players if p["PlayerNumber"] in (1, 2)
                 ]
+
                 away = [
                     {
                         "name": p["Navn"],
@@ -1206,7 +1186,6 @@ def recent_matches():
                     for p in players if p["PlayerNumber"] in (3, 4)
                 ]
 
-            # 🔥 build response
             result.append({
                 "id": match_id,
                 "homePlayers": home,
@@ -1242,95 +1221,49 @@ def get_match_points(match_id: int):
     conn = get_conn()
     cur = conn.cursor()
     try:
-        # hent match type
         cur.execute("""
-            SELECT MatchTypeID
-            FROM MatchHeader
-            WHERE ID = %s
+            SELECT
+              MatchHeaderID,
+              SetNo,
+              GameNo,
+              HomeTeamPoint,
+              AwayTeamPoint,
+              Winner
+            FROM MatchGamesSet
+            WHERE MatchHeaderID = %s
+            ORDER BY SetNo, GameNo;
         """, (match_id,))
-        match = cur.fetchone()
-
-        if not match:
-            return {}
-
-        match_type = match["MatchTypeID"]
+        rows = cur.fetchall()
 
         sets = {}
 
-        # 🏓 BORDTENNIS
-        if match_type == 6:
-            cur.execute("""
-                SELECT
-                    HomeTeamPoint,
-                    AwayTeamPoint,
-                    HomeSet
-                FROM MatchDetailPoint
-                WHERE MatchHeaderID = %s
-                AND Deleted = 0
-                ORDER BY ID
-            """, (match_id,))
+        for r in rows:
+            # ✅ brug view felter (IKKE HomeSet/HomeGame)
+            set_no = r["SetNo"]
+            game_no = r["GameNo"]
 
-            rows = cur.fetchall()
+            if set_no not in sets:
+                sets[set_no] = {}
 
-            for r in rows:
-                set_no = (r["HomeSet"] or 0) + 1
+            if game_no not in sets[set_no]:
+                sets[set_no][game_no] = []
 
-                if set_no not in sets:
-                    sets[set_no] = {}
-
-                if 1 not in sets[set_no]:
-                    sets[set_no][1] = []
-
-                home = r["HomeTeamPoint"] or 0
-                away = r["AwayTeamPoint"] or 0
-
-                sets[set_no][1].append({
-                    "homePoint": home,
-                    "awayPoint": away,
-                    "team": "home" if home > away else "away"
-                })
-
-        # 🎾 PADEL / TENNIS
-        else:
-            cur.execute("""
-                SELECT
-                  SetNo,
-                  GameNo,
-                  HomeTeamPoint,
-                  AwayTeamPoint,
-                  Winner
-                FROM MatchGamesSet
-                WHERE MatchHeaderID = %s
-                ORDER BY SetNo, GameNo, ID
-            """, (match_id,))
-
-            rows = cur.fetchall()
-
-            for r in rows:
-                set_no = int(r["SetNo"] or 1)
-                game_no = int(r["GameNo"] or 1)
-
-                if set_no not in sets:
-                    sets[set_no] = {}
-
-                if game_no not in sets[set_no]:
-                    sets[set_no][game_no] = []
-
-                home = r["HomeTeamPoint"] or 0
-                away = r["AwayTeamPoint"] or 0
-
-                team = r["Winner"] or ("home" if home > away else "away")
-
-                sets[set_no][game_no].append({
-                    "homePoint": home,
-                    "awayPoint": away,
-                    "team": team
-                })
+            sets[set_no][game_no].append({
+                # ❌ ID og Timestamp findes ikke i view → fjernet
+                "team": r["Winner"],  # ✅ brug direkte fra view
+                "homePoint": r["HomeTeamPoint"],
+                "awayPoint": r["AwayTeamPoint"]
+            })
 
         return sets
 
+    except Exception as e:
+        print("ERROR:", e)
+        return {"error": str(e)}
+
     finally:
         conn.close()
+
 
 @app.get("/match-timeline/{match_id}")
 def get_match_timeline(match_id: int):
