@@ -1252,7 +1252,7 @@ def get_match_points(match_id: int):
               Winner
             FROM MatchGamesSet
             WHERE MatchHeaderID = %s
-            ORDER BY SetNo, GameNo, ID
+            ORDER BY SetNo, GameNo, MatchHeaderID
         """, (match_id,))
 
         rows = cur.fetchall()
