@@ -3,6 +3,7 @@ import pymysql
 import json
 import asyncio
 import time
+import express from "express";
 from fastapi import FastAPI, Request, UploadFile, File, Form
 from typing import List, Optional
 from pydantic import BaseModel
@@ -20,7 +21,7 @@ hold_state = {
 
 COMBO_WINDOW = 1000  # ms
 
-
+const router = express.Router();
 
 
 
@@ -1355,6 +1356,66 @@ def read_KPI():
     conn.close()
 
     return KPI
+
+
+
+
+    router.post("/tournaments", async (req, res) => {
+  try {
+    const {
+      name,
+      mode,
+      matchType,
+      duration,
+      rounds,
+      players,
+      createdBy,
+    } = req.body;
+
+    // 🔒 Basic validation
+    if (!name || !mode || !players || players.length < 4) {
+      return res.status(400).json({ error: "Invalid input" });
+    }
+
+    // 🔧 MatchType mapping (frontend → DB)
+    const matchTypeMapped =
+      matchType === "fixed" ? "fixed_matches" : "time";
+
+    // 1️⃣ Create tournament
+    const [result]: any = await db.query(
+      "CALL CreateTournament(?,?,?,?,?,?)",
+      [name, mode, matchTypeMapped, rounds || null, duration || null, createdBy]
+    );
+
+    const tournamentId = result[0][0].TournamentId;
+
+    // 2️⃣ Add players
+    for (const playerId of players) {
+      await db.query(
+        "CALL AddPlayerToTournament(?,?)",
+        [tournamentId, playerId]
+      );
+    }
+
+    // 3️⃣ Generate first round
+    await db.query(
+      "CALL GenerateNextRound(?)",
+      [tournamentId]
+    );
+
+    // ✅ Response
+    res.json({
+      success: true,
+      tournamentId,
+    });
+
+  } catch (err) {
+    console.error("CreateTournament error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+export default router;
 
 
 
