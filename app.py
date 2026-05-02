@@ -203,7 +203,7 @@ def close_finished_matches():
 @app.get("/Users/")
 def read_users():
     conn = get_conn()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor()
 
     cur.execute("""
         SELECT
