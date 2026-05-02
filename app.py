@@ -1364,12 +1364,13 @@ class TournamentCreate(BaseModel):
     createdBy: int
 
 
+
 @app.post("/tournaments") 
 def create_tournament(data: TournamentCreate):
     conn = get_conn()
     cur = conn.cursor()
-
     try:
+        # 🔥 Opret tournament
         cur.execute("""
             INSERT INTO Tournaments (
                 Name,
@@ -1385,58 +1386,54 @@ def create_tournament(data: TournamentCreate):
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
         """, (
             data.name,
-            "padel",              
+            "padel",
             data.mode,
             data.matchType,
             data.duration,
             data.rounds,
-            "pending",            
+            "pending",
             data.createdBy
         ))
 
-
-
-
-
-
-        
-
         tournament_id = cur.lastrowid
 
-        # 🔥 tilføj spillere
+        # 🔥 tilføj spillere til tournament
         for player_id in data.players:
             cur.execute("""
                 INSERT INTO TournamentPlayers (TournamentId, PlayerId)
                 VALUES (%s, %s)
             """, (tournament_id, player_id))
 
-      
-
-
-
-
-
-
-        # 🔥 lav simple kampe (2 vs 2)
+        # 🔥 GENERATE MATCHES (2v2)
         players = data.players
-
         round_number = 1
 
         for i in range(0, len(players), 4):
             group = players[i:i+4]
 
-            if len(group) < 2:
-               continue
+            if len(group) < 4:
+                continue
 
-        # indsæt tom match (oprettes først når man klikker start)
-        cur.execute("""
-            INSERT INTO TournamentMatches (TournamentID, Round)
-            VALUES (%s, %s)
-        """, (tournament_id, round_number))
+            # 🔥 opret match
+            cur.execute("""
+                INSERT INTO TournamentMatches (TournamentID, Round, Status, CreatedAt)
+                VALUES (%s, %s, 'pending', NOW())
+            """, (tournament_id, round_number))
 
+            tm_id = cur.lastrowid
 
+            # 🔥 indsæt spillere i match
+            position = 1
+            for p in group:
+                cur.execute("""
+                    INSERT INTO TournamentMatchPlayers (TournamentMatchId, PlayerId, Position)
+                    VALUES (%s, %s, %s)
+                """, (tm_id, p, position))
+                position += 1
 
-        conn.commit()        
+            round_number += 1
+
+        conn.commit()
 
         return {
             "success": True,
@@ -1452,25 +1449,28 @@ def create_tournament(data: TournamentCreate):
 
 
 
+
+
+
 @app.post("/tournament/start-match/{tm_id}")
 def start_tournament_match(tm_id: int):
     conn = get_conn()
     cur = conn.cursor()
-
     try:
-        # hent players
+        # 🔥 hent spillere fra match (IKKE tournament)
         cur.execute("""
-            SELECT tp.PlayerId
-            FROM TournamentPlayers tp
-            WHERE tp.TournamentId = (
-                SELECT TournamentID FROM TournamentMatches WHERE ID = %s
-            )
-            LIMIT 4
+            SELECT PlayerId
+            FROM TournamentMatchPlayers
+            WHERE TournamentMatchId = %s
+            ORDER BY Position
         """, (tm_id,))
 
         players = [r["PlayerId"] for r in cur.fetchall()]
 
-        # opret match
+        if len(players) < 2:
+            return {"error": "Not enough players in match"}
+
+        # 🔥 opret match
         cur.execute("""
             INSERT INTO MatchHeader (Status, StartedAt, Timestamp)
             VALUES ('Live', NOW(), NOW())
@@ -1478,16 +1478,14 @@ def start_tournament_match(tm_id: int):
 
         match_id = cur.lastrowid
 
-        # indsæt players
-        num = 1
-        for p in players:
+        # 🔥 indsæt spillere i match
+        for i, p in enumerate(players, start=1):
             cur.execute("""
                 INSERT INTO MatchPlayers (MatchID, PlayerID, PlayerNumber, Timestamp)
                 VALUES (%s, %s, %s, NOW())
-            """, (match_id, p, num))
-            num += 1
+            """, (match_id, p, i))
 
-        # 🔥 link match til tournament
+        # 🔥 link til tournament match
         cur.execute("""
             UPDATE TournamentMatches
             SET MatchID = %s,
@@ -1505,3 +1503,9 @@ def start_tournament_match(tm_id: int):
 
     finally:
         conn.close()
+
+
+
+
+
+
