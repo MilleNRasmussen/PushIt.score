@@ -1410,7 +1410,33 @@ def create_tournament(data: TournamentCreate):
                 VALUES (%s, %s)
             """, (tournament_id, player_id))
 
-        conn.commit()
+      
+
+
+
+
+
+
+        # 🔥 lav simple kampe (2 vs 2)
+        players = data.players
+
+        round_number = 1
+
+        for i in range(0, len(players), 4):
+        group = players[i:i+4]
+
+        if len(group) < 2:
+        continue
+
+        # indsæt tom match (oprettes først når man klikker start)
+        cur.execute("""
+            INSERT INTO TournamentMatches (TournamentID, Round)
+            VALUES (%s, %s)
+        """, (tournament_id, round_number))
+
+
+
+        conn.commit()        
 
         return {
             "success": True,
