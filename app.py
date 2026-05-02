@@ -1426,9 +1426,9 @@ def create_tournament(data: TournamentCreate):
             position = 1
             for p in group:
                 cur.execute("""
-                    INSERT INTO TournamentMatchPlayers (TournamentMatchId, PlayerId, Position)
-                    VALUES (%s, %s, %s)
-                """, (tm_id, p, position))
+                    INSERT INTO TournamentMatchPlayers (TournamentMatchId, TournamentID, PlayerId, Position)
+                    VALUES (%s, %s, %s, %s)
+                """, (tm_id, tournament_id, p, position))
                 position += 1
 
             round_number += 1
