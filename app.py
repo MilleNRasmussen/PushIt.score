@@ -208,24 +208,22 @@ def close_finished_matches():
 @app.get("/Users/")
 def read_users():
 
-    conn = get_conn()
-    cur = conn.cursor()
+  cur = conn.cursor(dictionary=True)
 
-    cur.execute("""
-        SELECT
+cur.execute("""
+    SELECT
         ID as id,
         Navn as name,
         CONCAT('/avatars/', ID, '.png') as avatar,
         IF(ButtonID IS NULL, 0, 1) as has_flic
-        FROM Users
-    """)
+    FROM Users
+""")
 
-    users = cur.fetchall()
+users = cur.fetchall()
 
-    conn.close()
+conn.close()
 
-    return users
-
+return users
 
 
 
