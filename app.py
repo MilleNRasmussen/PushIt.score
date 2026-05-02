@@ -1423,7 +1423,7 @@ def create_tournament(data: TournamentCreate):
         round_number = 1
 
         for i in range(0, len(players), 4):
-        group = players[i:i+4]
+            group = players[i:i+4]
 
         if len(group) < 2:
         continue
