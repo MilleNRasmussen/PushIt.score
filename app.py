@@ -1404,8 +1404,6 @@ def read_KPI():
   }
 });
 
-export default router;
-
 
 
     conn.close()
