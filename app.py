@@ -1370,20 +1370,6 @@ def create_tournament(data: TournamentCreate):
     cur = conn.cursor()
 
     try:
-        # 🔥 opret tournament
-        cur.execute("""
-            INSERT INTO Tournaments (Name, Mode, MatchType, Duration, Rounds, CreatedBy)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (
-            data.name,
-            data.mode,
-            data.matchType,
-            data.duration,
-            data.rounds,
-            data.createdBy
-        ))
-
-
         cur.execute("""
             INSERT INTO Tournaments (
                 Name,
