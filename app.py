@@ -1449,3 +1449,59 @@ def create_tournament(data: TournamentCreate):
 
     finally:
         conn.close()
+
+
+
+@app.post("/tournament/start-match/{tm_id}")
+def start_tournament_match(tm_id: int):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        # hent players
+        cur.execute("""
+            SELECT tp.PlayerId
+            FROM TournamentPlayers tp
+            WHERE tp.TournamentId = (
+                SELECT TournamentID FROM TournamentMatches WHERE ID = %s
+            )
+            LIMIT 4
+        """, (tm_id,))
+
+        players = [r["PlayerId"] for r in cur.fetchall()]
+
+        # opret match
+        cur.execute("""
+            INSERT INTO MatchHeader (Status, StartedAt, Timestamp)
+            VALUES ('Live', NOW(), NOW())
+        """)
+
+        match_id = cur.lastrowid
+
+        # indsæt players
+        num = 1
+        for p in players:
+            cur.execute("""
+                INSERT INTO MatchPlayers (MatchID, PlayerID, PlayerNumber, Timestamp)
+                VALUES (%s, %s, %s, NOW())
+            """, (match_id, p, num))
+            num += 1
+
+        # 🔥 link match til tournament
+        cur.execute("""
+            UPDATE TournamentMatches
+            SET MatchID = %s,
+                Status = 'live'
+            WHERE ID = %s
+        """, (match_id, tm_id))
+
+        conn.commit()
+
+        return {"match_id": match_id}
+
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
