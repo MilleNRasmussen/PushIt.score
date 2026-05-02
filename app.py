@@ -3,7 +3,6 @@ import pymysql
 import json
 import asyncio
 import time
-import express from "express";
 from fastapi import FastAPI, Request, UploadFile, File, Form
 from typing import List, Optional
 from pydantic import BaseModel
