@@ -13,7 +13,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.responses import JSONResponse
 from fastapi import WebSocket 
 
-# 🔥 global state
+
 hold_state = {
     "home": 0,
     "away": 0
@@ -1370,16 +1370,16 @@ def read_KPI():
       createdBy,
     } = req.body;
 
-    // 🔒 Basic validation
+    // Basic validation
     if (!name || !mode || !players || players.length < 4) {
       return res.status(400).json({ error: "Invalid input" });
     }
 
-    // 🔧 MatchType mapping (frontend → DB)
+    // MatchType mapping (frontend → DB)
     const matchTypeMapped =
       matchType === "fixed" ? "fixed_matches" : "time";
 
-    // 1️⃣ Create tournament
+    
     const [result]: any = await db.query(
       "CALL CreateTournament(?,?,?,?,?,?)",
       [name, mode, matchTypeMapped, rounds || null, duration || null, createdBy]
