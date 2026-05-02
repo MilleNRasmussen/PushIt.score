@@ -1383,6 +1383,38 @@ def create_tournament(data: TournamentCreate):
             data.createdBy
         ))
 
+
+        cur.execute("""
+            INSERT INTO Tournaments (
+                Name,
+                Sport,
+                Mode,
+                MatchType,
+                MatchDurationMinutes,
+                TotalRounds,
+                Status,
+                CreatedBy,
+                CreatedAt
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        """, (
+            data.name,
+            "padel",              
+            data.mode,
+            data.matchType,
+            data.duration,
+            data.rounds,
+            "pending",            
+            data.createdBy
+        ))
+
+
+
+
+
+
+        
+
         tournament_id = cur.lastrowid
 
         # 🔥 tilføj spillere
