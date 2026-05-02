@@ -1278,6 +1278,10 @@ def get_match_timeline(match_id: int):
     sets = {}
 
 
+    conn.close()
+    return {
+        "points": rows
+    }
 
 
 @app.get("/match-points-tabletennis/{match_id}")
