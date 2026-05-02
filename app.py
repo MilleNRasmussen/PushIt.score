@@ -20,10 +20,6 @@ hold_state = {
 
 COMBO_WINDOW = 1000  # ms
 
-const router = express.Router();
-
-
-
 app = FastAPI()
 
 # ---------- SSE CLIENTS ----------
