@@ -1353,3 +1353,55 @@ def read_KPI():
 
 
 
+
+class TournamentCreate(BaseModel):
+    name: str
+    mode: str
+    matchType: str
+    duration: Optional[int] = None
+    rounds: Optional[int] = None
+    players: List[int]
+    createdBy: int
+
+
+@app.post("/tournaments")
+def create_tournament(data: TournamentCreate):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        # 🔥 opret tournament
+        cur.execute("""
+            INSERT INTO Tournaments (Name, Mode, MatchType, Duration, Rounds, CreatedBy)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            data.name,
+            data.mode,
+            data.matchType,
+            data.duration,
+            data.rounds,
+            data.createdBy
+        ))
+
+        tournament_id = cur.lastrowid
+
+        # 🔥 tilføj spillere
+        for player_id in data.players:
+            cur.execute("""
+                INSERT INTO TournamentPlayers (TournamentId, PlayerId)
+                VALUES (%s, %s)
+            """, (tournament_id, player_id))
+
+        conn.commit()
+
+        return {
+            "success": True,
+            "tournamentId": tournament_id
+        }
+
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
