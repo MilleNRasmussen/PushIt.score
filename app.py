@@ -206,25 +206,22 @@ def close_finished_matches():
 @app.get("/users")
 @app.get("/Users/")
 def read_users():
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
 
-  cur = conn.cursor(dictionary=True)
+    cur.execute("""
+        SELECT
+            ID as id,
+            Navn as name,
+            CONCAT('/avatars/', ID, '.png') as avatar,
+            IF(ButtonID IS NULL, 0, 1) as has_flic
+        FROM Users
+    """)
 
-cur.execute("""
-    SELECT
-        ID as id,
-        Navn as name,
-        CONCAT('/avatars/', ID, '.png') as avatar,
-        IF(ButtonID IS NULL, 0, 1) as has_flic
-    FROM Users
-""")
+    users = cur.fetchall()
+    conn.close()
 
-users = cur.fetchall()
-
-conn.close()
-
-return users
-
-
+    return users
 
 
 
