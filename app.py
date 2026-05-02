@@ -1364,7 +1364,7 @@ class TournamentCreate(BaseModel):
     createdBy: int
 
 
-@app.post("/tournaments")
+@app.post("/tournaments") 
 def create_tournament(data: TournamentCreate):
     conn = get_conn()
     cur = conn.cursor()
