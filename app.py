@@ -1370,12 +1370,11 @@ def read_KPI():
       createdBy,
     } = req.body;
 
-    // Basic validation
     if (!name || !mode || !players || players.length < 4) {
       return res.status(400).json({ error: "Invalid input" });
     }
 
-    // MatchType mapping (frontend → DB)
+
     const matchTypeMapped =
       matchType === "fixed" ? "fixed_matches" : "time";
 
@@ -1387,7 +1386,7 @@ def read_KPI():
 
     const tournamentId = result[0][0].TournamentId;
 
-    // 2️⃣ Add players
+  
     for (const playerId of players) {
       await db.query(
         "CALL AddPlayerToTournament(?,?)",
@@ -1395,13 +1394,13 @@ def read_KPI():
       );
     }
 
-    // 3️⃣ Generate first round
+    
     await db.query(
       "CALL GenerateNextRound(?)",
       [tournamentId]
     );
 
-    // ✅ Response
+   
     res.json({
       success: true,
       tournamentId,
