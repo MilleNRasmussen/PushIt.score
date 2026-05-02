@@ -1425,8 +1425,8 @@ def create_tournament(data: TournamentCreate):
         for i in range(0, len(players), 4):
             group = players[i:i+4]
 
-        if len(group) < 2:
-        continue
+            if len(group) < 2:
+               continue
 
         # indsæt tom match (oprettes først når man klikker start)
         cur.execute("""
