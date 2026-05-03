@@ -1305,22 +1305,23 @@ def get_tabletennis_points(match_id: int):
 
     sets = {}
     current_set = 1
-    sets[current_set] = []
 
     for r in rows:
-        sets[current_set].append({
-            "home": r["HomeTeamPoint"],
-            "away": r["AwayTeamPoint"]
+        if current_set not in sets:
+            sets[current_set] = {}
+
+        # 🔥 fake game = 1 (så frontend virker)
+        if 1 not in sets[current_set]:
+            sets[current_set][1] = []
+
+        sets[current_set][1].append({
+            "team": 1 if r["HomeTeamPoint"] > r["AwayTeamPoint"] else 0,
+            "homePoint": r["HomeTeamPoint"],
+            "awayPoint": r["AwayTeamPoint"]
         })
 
-        # 🔥 NØGLEN
         if r["ClosedRow"] == 1:
             current_set += 1
-            sets[current_set] = []
-
-    # fjern evt tom sidste set
-    if len(sets.get(current_set, [])) == 0:
-        sets.pop(current_set, None)
 
     return sets
 
