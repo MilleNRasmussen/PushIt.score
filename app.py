@@ -1128,9 +1128,9 @@ def recent_matches():
                     ORDER BY ID DESC
                     LIMIT 1
                 """, (match_id, s["SetNo"]))
-
+            
                 last = cur.fetchone()
-
+            
                 if last:
                     if last["HomeTeamPoint"] > last["AwayTeamPoint"]:
                         sets_formatted.append("7-6")
@@ -1138,7 +1138,7 @@ def recent_matches():
                         sets_formatted.append("6-7")
                 else:
                     sets_formatted.append("6-6")
-
+            
             else:
                 sets_formatted.append(f"{home}-{away}")
 
