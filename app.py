@@ -1114,33 +1114,33 @@ def recent_matches():
 
         sets_formatted = []
 
-        for s in sets:
-            home = s["HomeGames"]
-            away = s["AwayGames"]
+    for s in sets:
+        home = s["HomeGames"]
+        away = s["AwayGames"]
 
-            if home == 6 and away == 6:
-                cur.execute("""
-                    SELECT HomeTeamPoint, AwayTeamPoint
-                    FROM MatchDetailPoint
-                    WHERE MatchHeaderID = %s
-                    AND SetNo = %s
-                    AND Deleted = 0
-                    ORDER BY ID DESC
-                    LIMIT 1
-                """, (match_id, s["SetNo"]))
-            
-                last = cur.fetchone()
-            
-                if last:
-                    if last["HomeTeamPoint"] > last["AwayTeamPoint"]:
-                        sets_formatted.append("7-6")
-                    else:
-                        sets_formatted.append("6-7")
+        if home == 6 and away == 6:
+            cur.execute("""
+                SELECT HomeTeamPoint, AwayTeamPoint
+                FROM MatchDetailPoint
+                WHERE MatchHeaderID = %s
+                AND SetNo = %s
+                AND Deleted = 0
+                ORDER BY ID DESC
+                LIMIT 1
+            """, (match_id, s["SetNo"]))
+        
+            last = cur.fetchone()
+        
+            if last:
+                if last["HomeTeamPoint"] > last["AwayTeamPoint"]:
+                    sets_formatted.append("7-6")
                 else:
-                    sets_formatted.append("6-6")
-            
+                    sets_formatted.append("6-7")
             else:
-                sets_formatted.append(f"{home}-{away}")
+                sets_formatted.append("6-6")
+        
+        else:
+            sets_formatted.append(f"{home}-{away}")
 
     home_sets = sum(
         1 for s in sets_formatted
