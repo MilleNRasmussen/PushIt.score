@@ -1152,7 +1152,7 @@ def format_set(home, away, match_id, set_no, cur):
 
     home_sets = sum(
         1 for s in sets_formatted
-        if int(s.split("-")[0]) > int(s.split("-")[1])
+        if int(s.split("-")[0]) > int(s.split("-")[1]) 
     )
 
     away_sets = sum(
