@@ -1118,29 +1118,37 @@ def recent_matches():
         home = s["HomeGames"]
         away = s["AwayGames"]
 
-        if home == 6 and away == 6:
-            cur.execute("""
-                SELECT HomeTeamPoint, AwayTeamPoint
-                FROM MatchDetailPoint
-                WHERE MatchHeaderID = %s
-                AND SetNo = %s
-                AND Deleted = 0
-                ORDER BY ID DESC
-                LIMIT 1
-            """, (match_id, s["SetNo"]))
-        
-            last = cur.fetchone()
-        
-            if last:
-                if last["HomeTeamPoint"] > last["AwayTeamPoint"]:
-                    sets_formatted.append("7-6")
-                else:
-                    sets_formatted.append("6-7")
-            else:
-                sets_formatted.append("6-6")
-        
+def format_set(home, away, match_id, set_no, cur):
+    # 🎾 TIEBREAK
+    if home == 6 and away == 6:
+        cur.execute("""
+            SELECT HomeTeamPoint, AwayTeamPoint
+            FROM MatchDetailPoint
+            WHERE MatchHeaderID = %s
+            AND SetNo = %s
+            AND Deleted = 0
+            ORDER BY ID DESC
+            LIMIT 1
+        """, (match_id, set_no))
+
+        last = cur.fetchone()
+
+        home_tb = 0
+        away_tb = 0
+
+        if last:
+            home_tb = last["HomeTeamPoint"]
+            away_tb = last["AwayTeamPoint"]
+
+        if home_tb > away_tb:
+            return "7-6"
+        elif away_tb > home_tb:
+            return "6-7"
         else:
-            sets_formatted.append(f"{home}-{away}")
+            return "6-6"
+
+    # 🎾 NORMAL SET
+    return f"{home}-{away}"
 
     home_sets = sum(
         1 for s in sets_formatted
@@ -1533,6 +1541,9 @@ def start_tournament_match(tm_id: int):
 
     finally:
         conn.close()
+
+
+
 
 
 
