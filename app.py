@@ -1100,48 +1100,47 @@ def recent_matches():
                 )
 
             # 🎾 PADEL / TENNIS (UÆNDRET)
-          else:
-    cur.execute("""
-        SELECT 
-            SetNo,
-            HomeGames,
-            AwayGames
-        FROM MatchSetScore
-        WHERE MatchHeaderID = %s
-        ORDER BY SetNo
-    """, (match_id,))
-    sets = cur.fetchall()
+     else:
+        cur.execute("""
+            SELECT 
+                SetNo,
+                HomeGames,
+                AwayGames
+            FROM MatchSetScore
+            WHERE MatchHeaderID = %s
+            ORDER BY SetNo
+        """, (match_id,))
+        sets = cur.fetchall()
 
-    sets_formatted = []
+        sets_formatted = []
 
-    for s in sets:
-        home = s["HomeGames"]
-        away = s["AwayGames"]
+        for s in sets:
+            home = s["HomeGames"]
+            away = s["AwayGames"]
 
-        # 🔥 TIEBREAK
-        if home == 6 and away == 6:
-            cur.execute("""
-                SELECT HomeTeamPoint, AwayTeamPoint
-                FROM MatchDetailPoint
-                WHERE MatchHeaderID = %s
-                AND SetNo = %s
-                AND Deleted = 0
-                ORDER BY ID DESC
-                LIMIT 1
-            """, (match_id, s["SetNo"]))
+            if home == 6 and away == 6:
+                cur.execute("""
+                    SELECT HomeTeamPoint, AwayTeamPoint
+                    FROM MatchDetailPoint
+                    WHERE MatchHeaderID = %s
+                    AND SetNo = %s
+                    AND Deleted = 0
+                    ORDER BY ID DESC
+                    LIMIT 1
+                """, (match_id, s["SetNo"]))
 
-            last = cur.fetchone()
+                last = cur.fetchone()
 
-            if last:
-                if last["HomeTeamPoint"] > last["AwayTeamPoint"]:
-                    sets_formatted.append("7-6")
+                if last:
+                    if last["HomeTeamPoint"] > last["AwayTeamPoint"]:
+                        sets_formatted.append("7-6")
+                    else:
+                        sets_formatted.append("6-7")
                 else:
-                    sets_formatted.append("6-7")
-            else:
-                sets_formatted.append("6-6")
+                    sets_formatted.append("6-6")
 
-        else:
-            sets_formatted.append(f"{home}-{away}")
+            else:
+                sets_formatted.append(f"{home}-{away}")
 
     home_sets = sum(
         1 for s in sets_formatted
