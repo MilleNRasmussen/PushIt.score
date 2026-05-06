@@ -1059,14 +1059,13 @@ def recent_matches():
             LIMIT 20
         """)
         matches = cur.fetchall()
-
         result = []
 
         for m in matches:
             match_id = m["ID"]
             match_type_id = m["MatchTypeID"]
 
-            # 🏓 BORDTENNIS (uændret)
+            # 🏓 BORDTENNIS (FIXED)
             if match_type_id == 6:
                 cur.execute("""
                     SELECT 
@@ -1078,10 +1077,11 @@ def recent_matches():
                     AND Deleted = 0
                     ORDER BY ID
                 """, (match_id,))
-                rows = cur.fetchall()
 
+                rows = cur.fetchall()
                 sets_formatted = []
 
+                # 🔥 find set = rækken før ClosedRow
                 for i in range(1, len(rows)):
                     if rows[i]["ClosedRow"] == 1:
                         prev = rows[i - 1]
@@ -1099,7 +1099,7 @@ def recent_matches():
                     if int(s.split("-")[1]) > int(s.split("-")[0])
                 )
 
-            # 🎾 PADEL / TENNIS (FIXET MED TIEBREAK)
+            # 🎾 PADEL / TENNIS (UÆNDRET)
             else:
                 cur.execute("""
                     SELECT 
@@ -1110,71 +1110,46 @@ def recent_matches():
                     WHERE MatchHeaderID = %s
                     ORDER BY SetNo
                 """, (match_id,))
+
                 sets = cur.fetchall()
 
-                sets_formatted = []
-
-                for s in sets:
-                    home = s["HomeGames"]
-                    away = s["AwayGames"]
-
-                    # 🔥 TIEBREAK HÅNDTERING
-                    if home == 6 and away == 6:
-                        cur.execute("""
-                            SELECT HomeTeamPoint, AwayTeamPoint
-                            FROM MatchDetailPoint
-                            WHERE MatchHeaderID = %s
-                            AND SetNo = %s
-                            AND Deleted = 0
-                            ORDER BY ID DESC
-                            LIMIT 1
-                        """, (match_id, s["SetNo"]))
-
-                        last = cur.fetchone()
-
-                        home_tb = last["HomeTeamPoint"] if last else 0
-                        away_tb = last["AwayTeamPoint"] if last else 0
-
-                        if home_tb > away_tb:
-                            sets_formatted.append("7-6")
-                        elif away_tb > home_tb:
-                            sets_formatted.append("6-7")
-                        else:
-                            sets_formatted.append("6-6")
-
-                    else:
-                        sets_formatted.append(f"{home}-{away}")
-
                 home_sets = sum(
-                    1 for s in sets_formatted
-                    if int(s.split("-")[0]) > int(s.split("-")[1])
+                    1 for s in sets
+                    if s["HomeGames"] > s["AwayGames"]
                 )
 
                 away_sets = sum(
-                    1 for s in sets_formatted
-                    if int(s.split("-")[1]) > int(s.split("-")[0])
+                    1 for s in sets
+                    if s["AwayGames"] > s["HomeGames"]
                 )
-    
-        # 🔥 timestamp
-        cur.execute("""
-            SELECT Timestamp
-            FROM MatchDetailPoint
-            WHERE MatchHeaderID = %s
-            AND Deleted = 0
-            ORDER BY ID DESC
-            LIMIT 1
-""", (match_id,))
-        last = cur.fetchone() or {}
 
-        # 🔥 spillere
-        cur.execute("""
-            SELECT mp.PlayerNumber, u.Navn, mp.PlayerID
-            FROM MatchPlayers mp
-            JOIN Users u ON u.ID = mp.PlayerID
-            WHERE mp.MatchID = %s
-            ORDER BY mp.PlayerNumber
-        """, (match_id,))
-players = cur.fetchall()
+                sets_formatted = [
+                    f"{s['HomeGames']}-{s['AwayGames']}"
+                    for s in sets
+                ]
+
+            # 🔥 timestamp
+            cur.execute("""
+                SELECT Timestamp
+                FROM MatchDetailPoint
+                WHERE MatchHeaderID = %s
+                AND Deleted = 0
+                ORDER BY ID DESC
+                LIMIT 1
+            """, (match_id,))
+
+            last = cur.fetchone() or {}
+
+            # 🔥 spillere
+            cur.execute("""
+                SELECT mp.PlayerNumber, u.Navn, mp.PlayerID
+                FROM MatchPlayers mp
+                JOIN Users u ON u.ID = mp.PlayerID
+                WHERE mp.MatchID = %s
+                ORDER BY mp.PlayerNumber
+            """, (match_id,))
+
+            players = cur.fetchall()
 
             if len(players) == 2:
                 home = [{
@@ -1192,7 +1167,8 @@ players = cur.fetchall()
                         "playerid": p["PlayerID"]
                     }
                     for p in players if p["PlayerNumber"] in (1, 2)
-               ]
+                ]
+
                 away = [
                     {
                         "name": p["Navn"],
@@ -1212,7 +1188,7 @@ players = cur.fetchall()
                 "matchTypeId": match_type_id
             })
 
-        return result 
+        return result
 
     except Exception as e:
         print("ERROR recent-matches:", e, flush=True)
@@ -1221,7 +1197,16 @@ players = cur.fetchall()
     finally:
         conn.close()
 
-    
+
+
+
+
+
+
+
+
+
+
 @app.get("/match-points/{match_id}")
 def get_match_points(match_id: int):
     conn = get_conn()
@@ -1518,4 +1503,4 @@ def start_tournament_match(tm_id: int):
         return {"error": str(e)}
 
     finally:
-    conn.close()
+        conn.close()
