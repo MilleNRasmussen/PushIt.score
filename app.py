@@ -1100,65 +1100,28 @@ def recent_matches():
                 )
 
             # 🎾 PADEL / TENNIS (UÆNDRET)
-     else:
-        cur.execute("""
-            SELECT 
-                SetNo,
-                HomeGames,
-                AwayGames
-            FROM MatchSetScore
-            WHERE MatchHeaderID = %s
-            ORDER BY SetNo
-        """, (match_id,))
-        sets = cur.fetchall()
+            else:
+                cur.execute("""
+                    SELECT 
+                        SetNo,
+                        HomeGames,
+                        AwayGames
+                    FROM MatchSetScore
+                    WHERE MatchHeaderID = %s
+                    ORDER BY SetNo
+                """, (match_id,))
 
-        sets_formatted = []
+                sets = cur.fetchall()
 
-    for s in sets:
-        home = s["HomeGames"]
-        away = s["AwayGames"]
+                home_sets = sum(
+                    1 for s in sets
+                    if s["HomeGames"] > s["AwayGames"]
+                )
 
-def format_set(home, away, match_id, set_no, cur):
-    # 🎾 TIEBREAK
-    if home == 6 and away == 6:
-        cur.execute("""
-            SELECT HomeTeamPoint, AwayTeamPoint
-            FROM MatchDetailPoint
-            WHERE MatchHeaderID = %s
-            AND SetNo = %s
-            AND Deleted = 0
-            ORDER BY ID DESC
-            LIMIT 1
-        """, (match_id, set_no))
-
-        last = cur.fetchone()
-
-        home_tb = 0
-        away_tb = 0
-
-        if last:
-            home_tb = last["HomeTeamPoint"]
-            away_tb = last["AwayTeamPoint"]
-
-        if home_tb > away_tb:
-            return "7-6"
-        elif away_tb > home_tb:
-            return "6-7"
-        else:
-            return "6-6"
-
-    # 🎾 NORMAL SET
-    return f"{home}-{away}"
-
-    home_sets = sum(
-        1 for s in sets_formatted
-        if int(s.split("-")[0]) > int(s.split("-")[1]) 
-    )
-
-    away_sets = sum(
-        1 for s in sets_formatted
-        if int(s.split("-")[1]) > int(s.split("-")[0])
-    )
+                away_sets = sum(
+                    1 for s in sets
+                    if s["AwayGames"] > s["HomeGames"]
+                )
 
                 sets_formatted = [
                     f"{s['HomeGames']}-{s['AwayGames']}"
@@ -1541,12 +1504,3 @@ def start_tournament_match(tm_id: int):
 
     finally:
         conn.close()
-
-
-
-
-
-
-
-
-
