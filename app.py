@@ -1155,26 +1155,26 @@ def recent_matches():
                     if int(s.split("-")[1]) > int(s.split("-")[0])
                 )
     
-            # 🔥 timestamp
-            cur.execute("""
-                SELECT Timestamp
-                FROM MatchDetailPoint
-                WHERE MatchHeaderID = %s
-                AND Deleted = 0
-                ORDER BY ID DESC
-                LIMIT 1
-    """, (match_id,))
-            last = cur.fetchone() or {}
+        # 🔥 timestamp
+        cur.execute("""
+            SELECT Timestamp
+            FROM MatchDetailPoint
+            WHERE MatchHeaderID = %s
+            AND Deleted = 0
+            ORDER BY ID DESC
+            LIMIT 1
+""", (match_id,))
+        last = cur.fetchone() or {}
 
-            # 🔥 spillere
-            cur.execute("""
-                SELECT mp.PlayerNumber, u.Navn, mp.PlayerID
-                FROM MatchPlayers mp
-                JOIN Users u ON u.ID = mp.PlayerID
-                WHERE mp.MatchID = %s
-                ORDER BY mp.PlayerNumber
-            """, (match_id,))
-    players = cur.fetchall()
+        # 🔥 spillere
+        cur.execute("""
+            SELECT mp.PlayerNumber, u.Navn, mp.PlayerID
+            FROM MatchPlayers mp
+            JOIN Users u ON u.ID = mp.PlayerID
+            WHERE mp.MatchID = %s
+            ORDER BY mp.PlayerNumber
+        """, (match_id,))
+players = cur.fetchall()
 
             if len(players) == 2:
                 home = [{
