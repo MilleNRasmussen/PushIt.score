@@ -1505,5 +1505,74 @@ def start_tournament_match(tm_id: int):
         conn.rollback()
         return {"error": str(e)}
 
+
+
+    def generate_kpi_cache(match_id: int):
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        # 🔥 hent fra dit view
+        cur.execute("""
+            SELECT *
+            FROM MatchKpi
+            WHERE MatchHeaderID = %s
+        """, (match_id,))
+        
+        kpi = cur.fetchone()
+        if not kpi:
+            return
+
+        # 🔥 insert/update cache
+        cur.execute("""
+            INSERT INTO MatchKpiCache (
+                MatchHeaderID,
+                home_clean_games, away_clean_games,
+                home_deuce_wins, away_deuce_wins,
+                home_max_streak, away_max_streak,
+                home_max_point_streak, away_max_point_streak,
+                home_fastest_game_seconds, away_fastest_game_seconds,
+                home_avg_game_seconds, away_avg_game_seconds,
+                home_comeback_score, away_comeback_score,
+                home_clutch_score, away_clutch_score,
+                home_mental_score, away_mental_score
+            )
+            VALUES (
+                %(MatchHeaderID)s,
+                %(home_clean_games)s, %(away_clean_games)s,
+                %(home_deuce_wins)s, %(away_deuce_wins)s,
+                %(home_max_streak)s, %(away_max_streak)s,
+                %(home_max_point_streak)s, %(away_max_point_streak)s,
+                %(home_fastest_game_seconds)s, %(away_fastest_game_seconds)s,
+                %(home_avg_game_seconds)s, %(away_avg_game_seconds)s,
+                %(home_comeback_score)s, %(away_comeback_score)s,
+                %(home_clutch_score)s, %(away_clutch_score)s,
+                %(home_mental_score)s, %(away_mental_score)s
+            )
+            ON DUPLICATE KEY UPDATE
+                home_clean_games = VALUES(home_clean_games),
+                away_clean_games = VALUES(away_clean_games),
+                home_deuce_wins = VALUES(home_deuce_wins),
+                away_deuce_wins = VALUES(away_deuce_wins),
+                home_max_streak = VALUES(home_max_streak),
+                away_max_streak = VALUES(away_max_streak),
+                home_max_point_streak = VALUES(home_max_point_streak),
+                away_max_point_streak = VALUES(away_max_point_streak),
+                home_fastest_game_seconds = VALUES(home_fastest_game_seconds),
+                away_fastest_game_seconds = VALUES(away_fastest_game_seconds),
+                home_avg_game_seconds = VALUES(home_avg_game_seconds),
+                away_avg_game_seconds = VALUES(away_avg_game_seconds),
+                home_comeback_score = VALUES(home_comeback_score),
+                away_comeback_score = VALUES(away_comeback_score),
+                home_clutch_score = VALUES(home_clutch_score),
+                away_clutch_score = VALUES(away_clutch_score),
+                home_mental_score = VALUES(home_mental_score),
+                away_mental_score = VALUES(away_mental_score)
+        """, kpi)
+
+        conn.commit()
+
+    finally:
+        conn.close()
+
     finally:
         conn.close()
