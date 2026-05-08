@@ -982,7 +982,7 @@ async def webhook_end_game(request: Request):
             conn.commit()
 
             # 🔥 NEW: generate KPI cache
-            generate_kpi_cache(match_id)
+            calculate_kpi(match_id)
             
             # reset
             hold_state["home"] = 0
@@ -1454,8 +1454,6 @@ def create_tournament(data: TournamentCreate):
 
 
 def calculate_kpi(match_id: int):
-    from app import get_conn
-
     conn = get_conn()
     cur = conn.cursor()
 
