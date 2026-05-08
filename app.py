@@ -1530,8 +1530,6 @@ def calculate_kpi(match_id: int):
 
 @app.get("/api/test-kpi/{match_id}")
 def test_kpi(match_id: int):
-    from kpi_cache import calculate_kpi
-
     conn = get_conn()
     cur = conn.cursor()
 
