@@ -1526,3 +1526,30 @@ def calculate_kpi(match_id: int):
 
 
 
+
+
+@app.get("/api/test-kpi/{match_id}")
+def test_kpi(match_id: int):
+    from kpi_cache import calculate_kpi
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        calculate_kpi(match_id)
+
+        cur.execute("""
+            SELECT *
+            FROM MatchKpiCache
+            WHERE MatchHeaderID = %s
+        """, (match_id,))
+
+        row = cur.fetchone()
+
+        if not row:
+            return {"error": "No KPI data"}
+
+        return row
+
+    finally:
+        conn.close()
