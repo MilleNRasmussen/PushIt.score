@@ -370,10 +370,10 @@ def test_kpi(match_id: int):
         if not row:
             return {"error": "No KPI data"}
 
+        return row
 
-
-
-
+    finally:
+        conn.close()
 
 
 
@@ -1554,8 +1554,3 @@ def calculate_kpi(match_id: int):
 
 
 
-
-        return row
-
-    finally:
-        conn.close()
