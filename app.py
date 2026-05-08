@@ -351,6 +351,33 @@ async def update_user(user_id: int, data: UserUpdate):
 
 
 
+@app.get("/api/test-kpi/{match_id}")
+def test_kpi(match_id: int):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        calculate_kpi(match_id)
+
+        cur.execute("""
+            SELECT *
+            FROM MatchKpiCache
+            WHERE MatchHeaderID = %s
+        """, (match_id,))
+
+        row = cur.fetchone()
+
+        if not row:
+            return {"error": "No KPI data"}
+
+
+
+
+
+
+
+
+
 # ---------- CREATE MATCH ----------
 @app.post("/MatchHeaderInsert/")
 async def create_match(data: MatchCreate):
@@ -1526,24 +1553,7 @@ def calculate_kpi(match_id: int):
 
 
 
-@app.get("/api/test-kpi/{match_id}")
-def test_kpi(match_id: int):
-    conn = get_conn()
-    cur = conn.cursor()
 
-    try:
-        calculate_kpi(match_id)
-
-        cur.execute("""
-            SELECT *
-            FROM MatchKpiCache
-            WHERE MatchHeaderID = %s
-        """, (match_id,))
-
-        row = cur.fetchone()
-
-        if not row:
-            return {"error": "No KPI data"}
 
         return row
 
