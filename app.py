@@ -981,6 +981,9 @@ async def webhook_end_game(request: Request):
 
             conn.commit()
 
+            # 🔥 NEW: generate KPI cache
+            generate_kpi_cache(match_id)
+            
             # reset
             hold_state["home"] = 0
             hold_state["away"] = 0
