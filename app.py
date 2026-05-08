@@ -1453,7 +1453,76 @@ def create_tournament(data: TournamentCreate):
 
 
 
+def calculate_kpi(match_id: int):
+    from app import get_conn
 
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            INSERT INTO MatchKpiCache (
+                MatchHeaderID,
+                home_clean_games,
+                away_clean_games,
+                home_deuce_wins,
+                away_deuce_wins,
+                home_max_streak,
+                away_max_streak,
+                home_point_streak,
+                away_point_streak,
+                home_fastest_game,
+                away_fastest_game,
+                home_avg_game_duration,
+                away_avg_game_duration,
+                home_clutch,
+                away_clutch,
+                home_mental,
+                away_mental
+            )
+            SELECT
+                MatchHeaderID,
+                home_clean_games,
+                away_clean_games,
+                home_deuce_wins,
+                away_deuce_wins,
+                home_max_streak,
+                away_max_streak,
+                home_point_streak,
+                away_point_streak,
+                home_fastest_game,
+                away_fastest_game,
+                home_avg_game_duration,
+                away_avg_game_duration,
+                home_clutch,
+                away_clutch,
+                home_mental,
+                away_mental
+            FROM MatchKpi
+            WHERE MatchHeaderID = %s
+            ON DUPLICATE KEY UPDATE
+                home_clean_games = VALUES(home_clean_games),
+                away_clean_games = VALUES(away_clean_games),
+                home_deuce_wins = VALUES(home_deuce_wins),
+                away_deuce_wins = VALUES(away_deuce_wins),
+                home_max_streak = VALUES(home_max_streak),
+                away_max_streak = VALUES(away_max_streak),
+                home_point_streak = VALUES(home_point_streak),
+                away_point_streak = VALUES(away_point_streak),
+                home_fastest_game = VALUES(home_fastest_game),
+                away_fastest_game = VALUES(away_fastest_game),
+                home_avg_game_duration = VALUES(home_avg_game_duration),
+                away_avg_game_duration = VALUES(away_avg_game_duration),
+                home_clutch = VALUES(home_clutch),
+                away_clutch = VALUES(away_clutch),
+                home_mental = VALUES(home_mental),
+                away_mental = VALUES(away_mental);
+        """, (match_id,))
+
+        conn.commit()
+
+    finally:
+        conn.close()
 
 
 
