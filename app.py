@@ -1130,11 +1130,38 @@ def recent_matches():
                     if s["AwayGames"] > s["HomeGames"]
                 )
 
-                sets_formatted = [
-                    f"{s['HomeGames']}-{s['AwayGames']}"
-                    for s in sets
-                ]
+                sets_formatted = []
 
+                for s in sets:
+                    score = str(s["HomeGames"]) + "-" + str(s["AwayGames"])
+
+                    if s["HomeGames"] == 6 and s["AwayGames"] == 6:
+                        cur.execute(
+                            "SELECT HomeTeamPoint, AwayTeamPoint FROM MatchDetailPoint WHERE MatchHeaderID = %s AND Deleted = 0 AND HomeGame = 6 AND AwayGame = 6 AND ClosedRow = 0 ORDER BY ID DESC LIMIT 1",
+                            (match_id,)
+                        )
+                        tb = cur.fetchone()
+
+                        if tb:
+                            home_tb = tb["HomeTeamPoint"] if tb["HomeTeamPoint"] else 0
+                            away_tb = tb["AwayTeamPoint"] if tb["AwayTeamPoint"] else 0
+                            score = score + " (" + str(home_tb) + "-" + str(away_tb) + ")"
+
+                    sets_formatted.append(score)
+
+
+
+
+
+
+
+
+
+
+
+
+
+            
             # 🔥 timestamp
             cur.execute("""
                 SELECT Timestamp
