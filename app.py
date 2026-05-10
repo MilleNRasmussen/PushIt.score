@@ -1106,9 +1106,9 @@ def recent_matches():
                     if int(s.split("-")[1]) > int(s.split("-")[0])
                 )
 
-               sets_formatted = []
+                sets_formatted = []
 
-               for s in sets:
+                for s in sets:
                    score = str(s["HomeGames"]) + "-" + str(s["AwayGames"])
 
                    if s["HomeGames"] == 6 and s["AwayGames"] == 6:
