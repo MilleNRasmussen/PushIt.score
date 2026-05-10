@@ -1284,6 +1284,8 @@ def get_match_points(match_id: int):
               GameNo,
               HomeTeamPoint,
               AwayTeamPoint,
+              HomeGame,
+              AwayGame,
               Winner
             FROM MatchGamesSet
             WHERE MatchHeaderID = %s
@@ -1308,7 +1310,9 @@ def get_match_points(match_id: int):
                 # ❌ ID og Timestamp findes ikke i view → fjernet
                 "team": r["Winner"],  # ✅ brug direkte fra view
                 "homePoint": r["HomeTeamPoint"],
-                "awayPoint": r["AwayTeamPoint"]
+                "awayPoint": r["AwayTeamPoint"],
+                "homeGame": r["HomeGame"],
+                "awayGame": r["AwayGame"]
             })
 
         return sets
