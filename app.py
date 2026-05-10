@@ -1120,15 +1120,46 @@ def recent_matches():
 
                 sets = cur.fetchall()
 
-                home_sets = sum(
-                    1 for s in sets
-                    if s["HomeGames"] > s["AwayGames"]
-                )
 
-                away_sets = sum(
-                    1 for s in sets
-                    if s["AwayGames"] > s["HomeGames"]
-                )
+                home_sets = 0
+                away_sets = 0
+
+                for s in sets:
+                    home = s["HomeGames"]
+                    away = s["AwayGames"]
+
+                    if home > away:
+                        home_sets += 1
+                    elif away > home:
+                        away_sets += 1
+                    else:
+                        # 🔥 6-6 → afgøres af tiebreak
+                        cur.execute(
+                            "SELECT HomeTeamPoint, AwayTeamPoint FROM MatchDetailPoint WHERE MatchHeaderID = %s AND Deleted = 0 AND HomeGame = 6 AND AwayGame = 6 ORDER BY ID DESC LIMIT 1",
+                            (match_id,)
+                        )
+                        tb = cur.fetchone()
+
+                        if tb:
+                            if tb["HomeTeamPoint"] > tb["AwayTeamPoint"]:
+                                home_sets += 1
+                            else:
+                                away_sets += 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
 
                 sets_formatted = []
 
