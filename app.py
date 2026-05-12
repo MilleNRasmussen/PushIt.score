@@ -1307,8 +1307,8 @@ def get_match_points(match_id: int):
             sets[set_no][game_no].append({
                 # ❌ ID og Timestamp findes ikke i view → fjernet
                 "team": r["Winner"],  # ✅ brug direkte fra view
-                "homePoint": r["HomeTeamPoint"],
-                "awayPoint": r["AwayTeamPoint"]
+                "homePoint": r["homePoint"],
+                "awayPoint": r["awayPoint"]
               
             })
 
