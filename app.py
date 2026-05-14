@@ -1285,9 +1285,9 @@ def get_match_points(match_id: int):
               HomeTeamPoint AS homePoint ,
               AwayTeamPoint AS awayPoint,
               Winner,
-              HomeGame,
-              Awaygame,
-              GameType
+              HomeGame AS homeGame,
+              Awaygame AS awayGame,
+              GameType AS gameType
             FROM MatchGamesSet
             WHERE MatchHeaderID = %s
             ORDER BY SetNo, GameNo;
