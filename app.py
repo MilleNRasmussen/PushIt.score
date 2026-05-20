@@ -1437,12 +1437,13 @@ class TournamentCreate(BaseModel):
 
 
 
-@app.post("/tournaments") 
+@app.post("/tournaments")
 def create_tournament(data: TournamentCreate):
     conn = get_conn()
     cur = conn.cursor()
+
     try:
-        # 🔥 Opret tournament
+        # 🔹 1. CREATE TOURNAMENT
         cur.execute("""
             INSERT INTO Tournaments (
                 Name,
@@ -1458,7 +1459,7 @@ def create_tournament(data: TournamentCreate):
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
         """, (
             data.name,
-            "padel",
+            "generic",
             data.mode,
             data.matchType,
             data.duration,
@@ -1469,38 +1470,60 @@ def create_tournament(data: TournamentCreate):
 
         tournament_id = cur.lastrowid
 
-        # 🔥 tilføj spillere til tournament
-        for player_id in data.players:
-            cur.execute("""
-                INSERT INTO TournamentPlayers (TournamentId, PlayerId)
-                VALUES (%s, %s)
-            """, (tournament_id, player_id))
+        # 🔹 2. CREATE PARTICIPANTS (1 pr spiller)
+        participant_ids = []
 
-        # 🔥 GENERATE MATCHES (2v2)
-        players = data.players
+        for player_id in data.players:
+            # opret participant
+            cur.execute("""
+                INSERT INTO TournamentParticipants (TournamentID, Name, Type)
+                VALUES (%s, %s, 'player')
+            """, (tournament_id, f"Player {player_id}"))
+
+            participant_id = cur.lastrowid
+            participant_ids.append(participant_id)
+
+            # kobling til spiller
+            cur.execute("""
+                INSERT INTO TournamentParticipantPlayers (ParticipantID, PlayerID)
+                VALUES (%s, %s)
+            """, (participant_id, player_id))
+
+        # 🔹 3. GENERATE MATCHES (simpel pairing 1v1)
         round_number = 1
 
-        for i in range(0, len(players), 4):
-            group = players[i:i+4]
+        for i in range(0, len(participant_ids), 2):
+            pair = participant_ids[i:i+2]
 
-            if len(group) < 4:
+            if len(pair) < 2:
                 continue
 
-            # 🔥 opret match
+            # opret match
             cur.execute("""
-                INSERT INTO TournamentMatches (TournamentID, Round, Status, CreatedAt)
-                VALUES (%s, %s, 'pending', NOW())
+                INSERT INTO TournamentMatches (
+                    TournamentID,
+                    Round,
+                    Stage,
+                    Status,
+                    CreatedAt
+                )
+                VALUES (%s, %s, 'group', 'pending', NOW())
             """, (tournament_id, round_number))
 
             tm_id = cur.lastrowid
 
-            # 🔥 indsæt spillere i match
+            # tilføj participants til match
             position = 1
-            for p in group:
+            for pid in pair:
                 cur.execute("""
-                    INSERT INTO TournamentMatchPlayers (TournamentMatchId, TournamentID, PlayerId, Position)
-                    VALUES (%s, %s, %s, %s)
-                """, (tm_id, tournament_id, p, position))
+                    INSERT INTO TournamentMatchParticipants (
+                        TournamentMatchId,
+                        ParticipantID,
+                        Position
+                    )
+                    VALUES (%s, %s, %s)
+                """, (tm_id, pid, position))
+
                 position += 1
 
             round_number += 1
@@ -1518,8 +1541,6 @@ def create_tournament(data: TournamentCreate):
 
     finally:
         conn.close()
-
-
 
 def calculate_kpi(match_id: int):
     conn = get_conn()
