@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi.responses import StreamingResponse
 from fastapi.responses import JSONResponse
-from fastapi import WebSocket 
+from fastapi import WebSocket  
 
 
 
