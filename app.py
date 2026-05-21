@@ -1429,6 +1429,7 @@ def read_KPI():
 
 class TournamentCreate(BaseModel):
     name: str
+    matchTypeId: int 
     mode: str
     matchType: str
     duration: Optional[int] = None
@@ -1448,6 +1449,7 @@ def create_tournament(data: TournamentCreate):
         cur.execute("""
             INSERT INTO Tournaments (
                 Name,
+                MatchTypeID,
                 Sport,
                 Mode,
                 MatchType,
@@ -1457,9 +1459,10 @@ def create_tournament(data: TournamentCreate):
                 CreatedBy,
                 CreatedAt
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
         """, (
             data.name,
+            data.matchTypeId,
             "generic",
             data.mode,
             data.matchType,
