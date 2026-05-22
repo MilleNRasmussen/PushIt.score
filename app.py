@@ -1460,7 +1460,20 @@ def create_tournament(data: TournamentCreate):
     cur = conn.cursor()
 
     try:
-        # 🔥 1. CREATE TOURNAMENT
+        # 🔥 1. GET matchtype info
+        cur.execute("""
+            SELECT PlayerPerTeamDefault
+            FROM MatchType
+            WHERE ID = %s
+        """, (data.matchTypeId,))
+        
+        mt = cur.fetchone()
+        if not mt:
+            return {"error": "Invalid match type"}
+
+        players_per_team = mt["PlayerPerTeamDefault"]
+
+        # 🔥 2. CREATE TOURNAMENT
         cur.execute("""
             INSERT INTO Tournaments (
                 Name,
@@ -1476,7 +1489,7 @@ def create_tournament(data: TournamentCreate):
             VALUES (%s, %s, %s, %s, %s, %s, 'pending', %s, NOW())
         """, (
             data.name,
-            data.matchTypeId,  # 🔥 nu bruger vi ID
+            data.matchTypeId,
             data.mode,
             data.matchType,
             data.duration,
@@ -1486,25 +1499,44 @@ def create_tournament(data: TournamentCreate):
 
         tournament_id = cur.lastrowid
 
-        # 🔥 2. CREATE TEAMS
-        for team in data.teams:
-            cur.execute("""
-                INSERT INTO TournamentTeams (TournamentID, Name)
-                VALUES (%s, %s)
-            """, (tournament_id, team.name))
-
-            team_id = cur.lastrowid
-
-            # 🔥 3. INSERT PLAYERS IN TEAM
-            position = 1
-            for player_id in team.players:
+        # =====================================================
+        # 🔥 SINGLE PLAYER MODE
+        # =====================================================
+        if players_per_team == 1:
+            for player_id in data.players:
                 cur.execute("""
-                    INSERT INTO TournamentTeamPlayers 
-                    (TournamentTeamID, PlayerID, Position)
-                    VALUES (%s, %s, %s)
-                """, (team_id, player_id, position))
+                    INSERT INTO TournamentPlayers (TournamentId, PlayerId)
+                    VALUES (%s, %s)
+                """, (tournament_id, player_id))
 
-                position += 1
+        # =====================================================
+        # 🔥 TEAM MODE
+        # =====================================================
+        else:
+            team_ids = []
+
+            for i, team in enumerate(data.teams):
+                cur.execute("""
+                    INSERT INTO TournamentTeams (TournamentID, Name, Seed)
+                    VALUES (%s, %s, %s)
+                """, (
+                    tournament_id,
+                    team.name,
+                    i + 1
+                ))
+
+                team_id = cur.lastrowid
+                team_ids.append(team_id)
+
+                for pos, player_id in enumerate(team.players):
+                    cur.execute("""
+                        INSERT INTO TournamentTeamPlayers 
+                        (TournamentTeamID, PlayerID, Position)
+                        VALUES (%s, %s, %s)
+                    """, (team_id, player_id, pos + 1))
+
+            # 🔥 GENERATE MATCHES (kun for teams)
+            generate_groups_and_matches(cur, tournament_id, team_ids)
 
         conn.commit()
 
@@ -1519,6 +1551,73 @@ def create_tournament(data: TournamentCreate):
 
     finally:
         conn.close()
+
+
+
+def generate_groups_and_matches(cur, tournament_id, team_ids):
+    import random
+
+    # 🔥 shuffle teams
+    random.shuffle(team_ids)
+
+    half = len(team_ids) // 2
+    groupA = team_ids[:half]
+    groupB = team_ids[half:]
+
+    # 🔥 helper: round robin
+    def round_robin(teams, group_name):
+        for i in range(len(teams)):
+            for j in range(i + 1, len(teams)):
+                cur.execute("""
+                    INSERT INTO TournamentMatches (
+                        TournamentID,
+                        HomeTeamID,
+                        AwayTeamID,
+                        Round,
+                        Stage,
+                        GroupName,
+                        Status,
+                        CreatedAt
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, 'pending', NOW())
+                """, (
+                    tournament_id,
+                    teams[i],
+                    teams[j],
+                    1,
+                    "group",
+                    group_name
+                ))
+
+    # 🔥 group matches
+    round_robin(groupA, "A")
+    round_robin(groupB, "B")
+
+    # 🔥 placement matches (placeholder – teams kommer fra standings senere)
+    for i in range(len(groupA)):
+        cur.execute("""
+            INSERT INTO TournamentMatches (
+                TournamentID,
+                Round,
+                Stage,
+                Placement,
+                Status,
+                CreatedAt
+            )
+            VALUES (%s, %s, %s, %s, 'pending', NOW())
+        """, (
+            tournament_id,
+            2,
+            "placement",
+            f"{i*2+1}-{i*2+2}"
+        ))
+
+
+
+
+
+
+
 
 
 @app.get("/api/test-kpi/{match_id}")
