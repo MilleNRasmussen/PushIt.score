@@ -1439,17 +1439,31 @@ class TournamentCreate(BaseModel):
 
 
 
+class TeamInput(BaseModel):
+    name: str
+    players: list[int]
+
+class TournamentCreate(BaseModel):
+    name: str
+    matchTypeId: int
+    mode: str
+    matchType: str
+    duration: Optional[int] = None
+    rounds: Optional[int] = None
+    teams: list[TeamInput]
+    createdBy: int
+
+
 @app.post("/tournaments")
 def create_tournament(data: TournamentCreate):
     conn = get_conn()
     cur = conn.cursor()
 
     try:
-        # 🔹 1. CREATE TOURNAMENT
+        # 🔥 1. CREATE TOURNAMENT
         cur.execute("""
             INSERT INTO Tournaments (
                 Name,
-                MatchTypeID,
                 Sport,
                 Mode,
                 MatchType,
@@ -1459,78 +1473,38 @@ def create_tournament(data: TournamentCreate):
                 CreatedBy,
                 CreatedAt
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            VALUES (%s, %s, %s, %s, %s, %s, 'pending', %s, NOW())
         """, (
             data.name,
-            data.matchTypeId,
-            "generic",
+            data.matchTypeId,  # 🔥 nu bruger vi ID
             data.mode,
             data.matchType,
             data.duration,
             data.rounds,
-            "pending",
             data.createdBy
         ))
 
         tournament_id = cur.lastrowid
 
-        # 🔹 2. CREATE PARTICIPANTS (1 pr spiller)
-        participant_ids = []
-
-        for player_id in data.players:
-            # opret participant
+        # 🔥 2. CREATE TEAMS
+        for team in data.teams:
             cur.execute("""
-                INSERT INTO TournamentParticipants (TournamentID, Name, Type)
-                VALUES (%s, %s, 'player')
-            """, (tournament_id, f"Player {player_id}"))
-
-            participant_id = cur.lastrowid
-            participant_ids.append(participant_id)
-
-            # kobling til spiller
-            cur.execute("""
-                INSERT INTO TournamentParticipantPlayers (ParticipantID, PlayerID)
+                INSERT INTO TournamentTeams (TournamentID, Name)
                 VALUES (%s, %s)
-            """, (participant_id, player_id))
+            """, (tournament_id, team.name))
 
-        # 🔹 3. GENERATE MATCHES (simpel pairing 1v1)
-        round_number = 1
+            team_id = cur.lastrowid
 
-        for i in range(0, len(participant_ids), 2):
-            pair = participant_ids[i:i+2]
-
-            if len(pair) < 2:
-                continue
-
-            # opret match
-            cur.execute("""
-                INSERT INTO TournamentMatches (
-                    TournamentID,
-                    Round,
-                    Stage,
-                    Status,
-                    CreatedAt
-                )
-                VALUES (%s, %s, 'group', 'pending', NOW())
-            """, (tournament_id, round_number))
-
-            tm_id = cur.lastrowid
-
-            # tilføj participants til match
+            # 🔥 3. INSERT PLAYERS IN TEAM
             position = 1
-            for pid in pair:
+            for player_id in team.players:
                 cur.execute("""
-                    INSERT INTO TournamentMatchParticipants (
-                        TournamentMatchId,
-                        ParticipantID,
-                        Position
-                    )
+                    INSERT INTO TournamentTeamPlayers 
+                    (TournamentTeamID, PlayerID, Position)
                     VALUES (%s, %s, %s)
-                """, (tm_id, pid, position))
+                """, (team_id, player_id, position))
 
                 position += 1
-
-            round_number += 1
 
         conn.commit()
 
@@ -1545,76 +1519,6 @@ def create_tournament(data: TournamentCreate):
 
     finally:
         conn.close()
-
-def calculate_kpi(match_id: int):
-    conn = get_conn()
-    cur = conn.cursor()
-
-    try:
-        cur.execute("""
-            INSERT INTO MatchKpiCache (
-                MatchHeaderID,
-                home_clean_games,
-                away_clean_games,
-                home_deuce_wins,
-                away_deuce_wins,
-                home_max_streak,
-                away_max_streak,
-                home_point_streak,
-                away_point_streak,
-                home_fastest_game,
-                away_fastest_game,
-                home_avg_game_duration,
-                away_avg_game_duration,
-                home_clutch,
-                away_clutch,
-                home_mental,
-                away_mental
-            )
-            SELECT
-                MatchHeaderID,
-                home_clean_games,
-                away_clean_games,
-                home_deuce_wins,
-                away_deuce_wins,
-                home_max_streak,
-                away_max_streak,
-                home_point_streak,
-                away_point_streak,
-                home_fastest_game,
-                away_fastest_game,
-                home_avg_game_duration,
-                away_avg_game_duration,
-                home_clutch,
-                away_clutch,
-                home_mental,
-                away_mental
-            FROM MatchKpi
-            WHERE MatchHeaderID = %s
-            ON DUPLICATE KEY UPDATE
-                home_clean_games = VALUES(home_clean_games),
-                away_clean_games = VALUES(away_clean_games),
-                home_deuce_wins = VALUES(home_deuce_wins),
-                away_deuce_wins = VALUES(away_deuce_wins),
-                home_max_streak = VALUES(home_max_streak),
-                away_max_streak = VALUES(away_max_streak),
-                home_point_streak = VALUES(home_point_streak),
-                away_point_streak = VALUES(away_point_streak),
-                home_fastest_game = VALUES(home_fastest_game),
-                away_fastest_game = VALUES(away_fastest_game),
-                home_avg_game_duration = VALUES(home_avg_game_duration),
-                away_avg_game_duration = VALUES(away_avg_game_duration),
-                home_clutch = VALUES(home_clutch),
-                away_clutch = VALUES(away_clutch),
-                home_mental = VALUES(home_mental),
-                away_mental = VALUES(away_mental);
-        """, (match_id,))
-
-        conn.commit()
-
-    finally:
-        conn.close()
-
 
 
 @app.get("/api/test-kpi/{match_id}")
