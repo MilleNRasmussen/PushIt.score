@@ -1600,16 +1600,18 @@ def generate_groups_and_matches(cur, tournament_id, team_ids):
                 TournamentID,
                 Round,
                 Stage,
-                Placement,
+                PlacementFrom,
+                PlacementTo,
                 Status,
                 CreatedAt
             )
-            VALUES (%s, %s, %s, %s, 'pending', NOW())
+            VALUES (%s, %s, %s, %s, %s, 'pending', NOW())
         """, (
             tournament_id,
             2,
             "placement",
-            f"{i*2+1}-{i*2+2}"
+            i*2+1,
+            i*2+2
         ))
 
 
