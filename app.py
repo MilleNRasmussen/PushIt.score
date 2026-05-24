@@ -1553,7 +1553,7 @@ def create_tournament(data: TournamentCreate):
 
 
 
-def generate_groups_and_matches(cur, tournament_id, team_ids, data.group_count):
+def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
     import random
 
     # 🔥 shuffle teams
@@ -1616,7 +1616,10 @@ def generate_groups_and_matches(cur, tournament_id, team_ids, data.group_count):
     
 
     # 🔥 placement matches (placeholder – teams kommer fra standings senere)
-    for i in range(len(groups[0])):
+    min_group_size = min(len(g) for g in groups)
+
+    for i in range(min_group_size):
+        
         cur.execute("""
             INSERT INTO TournamentMatches (
                 TournamentID,
