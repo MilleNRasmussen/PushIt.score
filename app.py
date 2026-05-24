@@ -1427,6 +1427,14 @@ def read_KPI():
 
 
 
+
+
+
+
+class TeamInput(BaseModel):
+    name: str
+    players: list[int]
+
 class TournamentCreate(BaseModel):
     name: str
     matchTypeId: int 
@@ -1437,22 +1445,6 @@ class TournamentCreate(BaseModel):
     players: List[int]
     createdBy: int
     groupCount: int = 2
-
-
-
-class TeamInput(BaseModel):
-    name: str
-    players: list[int]
-
-class TournamentCreate(BaseModel):
-    name: str
-    matchTypeId: int
-    mode: str
-    matchType: str
-    duration: Optional[int] = None
-    rounds: Optional[int] = None
-    teams: list[TeamInput]
-    createdBy: int
 
 
 @app.post("/tournaments")
@@ -1496,7 +1488,8 @@ def create_tournament(data: TournamentCreate):
             data.matchType,
             data.duration,
             data.rounds,
-            data.createdBy
+            data.createdBy,
+            data.groupCount
         ))
 
         tournament_id = cur.lastrowid
@@ -1538,7 +1531,7 @@ def create_tournament(data: TournamentCreate):
                     """, (team_id, player_id, pos + 1))
 
             # 🔥 GENERATE MATCHES (kun for teams)
-            generate_groups_and_matches(cur, tournament_id, team_ids, groupCount)
+            generate_groups_and_matches(cur, tournament_id, team_ids, data.groupCount)
 
         conn.commit()
 
@@ -1623,7 +1616,7 @@ def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
     
 
     # 🔥 placement matches (placeholder – teams kommer fra standings senere)
-    for i in range(len(groupA)):
+    for i in range(len(groups[0])):
         cur.execute("""
             INSERT INTO TournamentMatches (
                 TournamentID,
