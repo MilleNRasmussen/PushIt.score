@@ -1554,15 +1554,12 @@ def create_tournament(data: TournamentCreate):
 def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
     import random
 
-    # 🔥 shuffle teams
     random.shuffle(team_ids)
 
-    # 🔥 split i grupper
     groups = [[] for _ in range(group_count)]
     for i, team in enumerate(team_ids):
         groups[i % group_count].append(team)
 
-    # 🔥 helper: round robin
     def round_robin(teams, group_name):
         for i in range(len(teams)):
             for j in range(i + 1, len(teams)):
@@ -1587,21 +1584,20 @@ def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
                     group_name
                 ))
 
-    # 🔥 loop alle grupper
+    # 🔥 DETTE SKAL VÆRE INDENI FUNKTIONEN
     for index, group in enumerate(groups):
         group_name = chr(65 + index)
 
         round_robin(group, group_name)
 
-        # 🔥 GEM GROUP NAME PÅ TEAMS
         for team_id in group:
+            print("UPDATING TEAM", team_id, "→", group_name)  # 🔥 DEBUG
             cur.execute("""
                 UPDATE TournamentTeams
                 SET GroupName = %s
                 WHERE ID = %s
             """, (group_name, team_id))
 
-    # 🔥 placement matches
     min_group_size = min(len(g) for g in groups)
     for i in range(min_group_size):
         cur.execute("""
@@ -1622,7 +1618,6 @@ def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
             i*2+1,
             i*2+2
         ))
-
 
 
 
