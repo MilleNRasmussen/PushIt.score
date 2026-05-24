@@ -1467,6 +1467,8 @@ def create_tournament(data: TournamentCreate):
 
         players_per_team = mt["PlayerPerTeamDefault"]
 
+        group_count = data.groupCount or 2
+
         print("INSERT GROUP COUNT:", group_count, flush=True)
         
         # 🔥 2. CREATE TOURNAMENT
