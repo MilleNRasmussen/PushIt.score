@@ -1536,7 +1536,7 @@ def create_tournament(data: TournamentCreate):
                     """, (team_id, player_id, pos + 1))
 
             # 🔥 GENERATE MATCHES (kun for teams)
-            generate_groups_and_matches(cur, tournament_id, team_ids, data.groupCount)
+            generate_groups_and_matches(cur, tournament_id, team_ids, group_count)
 
         conn.commit()
 
@@ -1564,7 +1564,7 @@ def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
     for i, team in enumerate(team_ids):
         groups[i % group_count].append(team)
 
-    def round_robin(teams, group_name):
+    def round_robin(teams, group_no):
         for i in range(len(teams)):
             for j in range(i + 1, len(teams)):
                 cur.execute("""
@@ -1574,7 +1574,7 @@ def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
                         AwayTeamID,
                         Round,
                         Stage,
-                        GroupName,
+                        GroupNo,
                         Status,
                         CreatedAt
                     )
@@ -1590,9 +1590,10 @@ def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
 
     # 🔥 DETTE SKAL VÆRE INDENI FUNKTIONEN
     for index, group in enumerate(groups):
+        group_no = index + 1
         group_name = chr(65 + index)
 
-        round_robin(group, group_name)
+        round_robin(group, group_no)
 
         for team_id in group:
             print("UPDATING TEAM", team_id, "→", group_name)  # 🔥 DEBUG
