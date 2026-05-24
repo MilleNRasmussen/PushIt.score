@@ -1492,7 +1492,7 @@ def create_tournament(data: TournamentCreate):
             data.duration,
             data.rounds,
             data.createdBy,
-            group_Count
+            group_count
         ))
 
         tournament_id = cur.lastrowid
