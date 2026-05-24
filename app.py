@@ -1551,9 +1551,6 @@ def create_tournament(data: TournamentCreate):
 
 
 
-
-
-
 def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
     import random
 
@@ -1562,7 +1559,6 @@ def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
 
     # 🔥 split i grupper
     groups = [[] for _ in range(group_count)]
-
     for i, team in enumerate(team_ids):
         groups[i % group_count].append(team)
 
@@ -1591,43 +1587,23 @@ def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
                     group_name
                 ))
 
-# 🔥 loop alle grupper
-for index, group in enumerate(groups):
-    group_name = chr(65 + index)  # A, B, C, D...
+    # 🔥 loop alle grupper
+    for index, group in enumerate(groups):
+        group_name = chr(65 + index)
 
-    round_robin(group, group_name)
+        round_robin(group, group_name)
 
-    for team_id in group:
-        cur.execute("""
-            UPDATE TournamentTeams
-            SET GroupName = %s
-            WHERE ID = %s
-        """, (group_name, team_id))
+        # 🔥 GEM GROUP NAME PÅ TEAMS
+        for team_id in group:
+            cur.execute("""
+                UPDATE TournamentTeams
+                SET GroupName = %s
+                WHERE ID = %s
+            """, (group_name, team_id))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
-    # 🔥 placement matches (placeholder – teams kommer fra standings senere)
+    # 🔥 placement matches
     min_group_size = min(len(g) for g in groups)
-
     for i in range(min_group_size):
-        
         cur.execute("""
             INSERT INTO TournamentMatches (
                 TournamentID,
@@ -1646,6 +1622,9 @@ for index, group in enumerate(groups):
             i*2+1,
             i*2+2
         ))
+
+
+
 
 
 
