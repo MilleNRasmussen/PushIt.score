@@ -1436,6 +1436,7 @@ class TournamentCreate(BaseModel):
     rounds: Optional[int] = None
     players: List[int]
     createdBy: int
+    groupCount: int = 2
 
 
 
@@ -1484,9 +1485,10 @@ def create_tournament(data: TournamentCreate):
                 TotalRounds,
                 Status,
                 CreatedBy,
-                CreatedAt
+                CreatedAt,
+                GroupCount
             )
-            VALUES (%s, %s, %s, %s, %s, %s, 'pending', %s, NOW())
+            VALUES (%s, %s, %s, %s, %s, %s, 'pending', %s, NOW(),%s)
         """, (
             data.name,
             data.matchTypeId,
@@ -1554,15 +1556,21 @@ def create_tournament(data: TournamentCreate):
 
 
 
-def generate_groups_and_matches(cur, tournament_id, team_ids):
+
+
+
+
+def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
     import random
 
     # 🔥 shuffle teams
     random.shuffle(team_ids)
 
-    half = len(team_ids) // 2
-    groupA = team_ids[:half]
-    groupB = team_ids[half:]
+    # 🔥 split i grupper
+    groups = [[] for _ in range(group_count)]
+
+    for i, team in enumerate(team_ids):
+        groups[i % group_count].append(team)
 
     # 🔥 helper: round robin
     def round_robin(teams, group_name):
@@ -1589,9 +1597,30 @@ def generate_groups_and_matches(cur, tournament_id, team_ids):
                     group_name
                 ))
 
-    # 🔥 group matches
-    round_robin(groupA, "A")
-    round_robin(groupB, "B")
+    # 🔥 loop alle grupper
+    for index, group in enumerate(groups):
+        group_name = chr(65 + index)  # A, B, C, D...
+        round_robin(group, group_name)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
 
     # 🔥 placement matches (placeholder – teams kommer fra standings senere)
     for i in range(len(groupA)):
