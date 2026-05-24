@@ -1443,6 +1443,7 @@ class TournamentCreate(BaseModel):
     duration: Optional[int] = None
     rounds: Optional[int] = None
     players: List[int]
+    teams: List[TeamInput]
     createdBy: int
     groupCount: int = 2
 
@@ -1590,11 +1591,18 @@ def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
                     group_name
                 ))
 
-    # 🔥 loop alle grupper
-    for index, group in enumerate(groups):
-        group_name = chr(65 + index)  # A, B, C, D...
-        round_robin(group, group_name)
+# 🔥 loop alle grupper
+for index, group in enumerate(groups):
+    group_name = chr(65 + index)  # A, B, C, D...
 
+    round_robin(group, group_name)
+
+    for team_id in group:
+        cur.execute("""
+            UPDATE TournamentTeams
+            SET GroupName = %s
+            WHERE ID = %s
+        """, (group_name, team_id))
 
 
 
@@ -1671,14 +1679,12 @@ def get_full_view(tournament_id: int):
         SELECT 
             tt.ID as TeamID,
             tt.Name,
-            tm.GroupName,
+            tt.GroupName,
             0 as Played,
             0 as Wins,
             0 as GoalsScored,
             0 as GoalsAgainst
         FROM TournamentTeams tt
-        LEFT JOIN TournamentMatches tm 
-            ON tm.HomeTeamID = tt.ID OR tm.AwayTeamID = tt.ID
         WHERE tt.TournamentID = %s
     """, (tournament_id,))
 
