@@ -1538,7 +1538,7 @@ def create_tournament(data: TournamentCreate):
                     """, (team_id, player_id, pos + 1))
 
             # 🔥 GENERATE MATCHES (kun for teams)
-            generate_groups_and_matches(cur, tournament_id, team_ids)
+            generate_groups_and_matches(cur, tournament_id, team_ids, groupCount)
 
         conn.commit()
 
