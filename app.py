@@ -1467,6 +1467,8 @@ def create_tournament(data: TournamentCreate):
 
         players_per_team = mt["PlayerPerTeamDefault"]
 
+        print("INSERT GROUP COUNT:", group_count, flush=True)
+        
         # 🔥 2. CREATE TOURNAMENT
         cur.execute("""
             INSERT INTO Tournaments (
@@ -1490,7 +1492,7 @@ def create_tournament(data: TournamentCreate):
             data.duration,
             data.rounds,
             data.createdBy,
-            data.groupCount
+            group_Count
         ))
 
         tournament_id = cur.lastrowid
