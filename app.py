@@ -1442,10 +1442,10 @@ class TournamentCreate(BaseModel):
     matchType: str
     duration: Optional[int] = None
     rounds: Optional[int] = None
-    players: List[int]
-    teams: List[TeamInput]
+    players: Optional[List[int]] = None
+    teams: Optional[List[TeamInput]] = None
     createdBy: int
-    groupCount: int = 2
+    groupCount: Optional[int] = 2
 
 
 @app.post("/tournaments")
