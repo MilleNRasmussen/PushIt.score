@@ -1585,7 +1585,7 @@ def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
                     teams[j],
                     1,
                     "group",
-                    group_name
+                    group_no
                 ))
 
     # 🔥 DETTE SKAL VÆRE INDENI FUNKTIONEN
