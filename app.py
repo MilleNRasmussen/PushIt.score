@@ -1808,3 +1808,31 @@ async def flic_webhook_tournament(request: Request):
 
     finally:
         conn.close()
+
+
+# =====================================================
+# TOKENS
+# =====================================================
+@app.get("/api/tokens")
+def get_tokens():
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT PublicToken
+            FROM CustomerClub
+            WHERE IsActive = 1
+        """)
+        
+        rows = cur.fetchall()
+
+        # returnér som array
+        tokens = [r["PublicToken"] for r in rows]
+
+        return tokens
+
+    except Exception as e:
+        print("ERROR tokens:", e)
+        return []
+    finally:
+        conn.close()
