@@ -1720,3 +1720,91 @@ def test_kpi(match_id: int):
 
     finally:
         conn.close()
+
+
+
+@app.post("/flic-webhook-tournament")
+async def flic_webhook_tournament(request: Request):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        try:
+            data = await request.json()
+        except:
+            data = {}
+
+        button_id = request.headers.get("button-serial-number")
+
+        if not button_id:
+            return {"error": "No button id"}
+
+        # 🔥 find aktiv turnering (eller hardcode hvis kun 1)
+        cur.execute("""
+            SELECT ID
+            FROM Tournaments
+            WHERE Status = 'active'
+            ORDER BY ID DESC
+            LIMIT 1
+        """)
+        t = cur.fetchone()
+
+        if not t:
+            return {"status": "no_active_tournament"}
+
+        tournament_id = t["ID"]
+
+        # 🔥 find group + team
+        cur.execute("""
+            SELECT 
+                GroupName,
+                CASE 
+                    WHEN HomeFlicID = %s THEN 'home'
+                    WHEN AwayFlicID = %s THEN 'away'
+                END as team
+            FROM TournamentFlics
+            WHERE TournamentID = %s
+            AND (HomeFlicID = %s OR AwayFlicID = %s)
+            LIMIT 1
+        """, (button_id, button_id, tournament_id, button_id, button_id))
+
+        mapping = cur.fetchone()
+
+        if not mapping:
+            return {"status": "unknown_flic"}
+
+        group_name = mapping["GroupName"]
+        team = mapping["team"]
+
+        # 🔥 find aktiv kamp i gruppen
+        cur.execute("""
+            SELECT ID
+            FROM MatchHeader
+            WHERE GroupName = %s
+            AND Status = 'Live'
+            ORDER BY ID DESC
+            LIMIT 1
+        """, (group_name,))
+
+        match = cur.fetchone()
+
+        if not match:
+            return {"status": "no_active_match"}
+
+        is_home = 1 if team == "home" else 0
+
+        cur.callproc(
+            "SP_InsertScore",
+            (button_id, "single", is_home)
+        )
+
+        conn.commit()
+
+        return {"status": "ok"}
+
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
