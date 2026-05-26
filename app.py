@@ -1508,13 +1508,13 @@ def create_tournament(data: TournamentCreate):
                     INSERT INTO TournamentPlayers (TournamentId, PlayerId)
                     VALUES (%s, %s)
                 """, (tournament_id, player_id))
-         if players_per_team == 1:
-             for team in data.teams:
-                 for player_id in team.players:
-                     cur.execute("""
-                         INSERT INTO TournamentPlayers (TournamentId, PlayerId)
-                         VALUES (%s, %s)
-                     """, (tournament_id, player_id))
+        if players_per_team == 1:
+            for team in data.teams:
+                for player_id in team.players:
+                    cur.execute("""
+                        INSERT INTO TournamentPlayers (TournamentId, PlayerId)
+                        VALUES (%s, %s)
+                    """, (tournament_id, player_id))
 
         # =====================================================
         # 🔥 TEAM MODE
