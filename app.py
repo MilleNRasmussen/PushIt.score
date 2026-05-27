@@ -1524,7 +1524,6 @@ def create_tournament(data: TournamentCreate):
                    team.name,
                    i + 1
                ))
-
                team_id = cur.lastrowid
                team_ids.append(team_id)
 
