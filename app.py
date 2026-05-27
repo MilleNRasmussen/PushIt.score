@@ -1503,14 +1503,8 @@ def create_tournament(data: TournamentCreate):
         # 🔥 SINGLE PLAYER MODE
         # =====================================================
         if players_per_team == 1:
-            for player_id in data.players:
-                cur.execute("""
-                    INSERT INTO TournamentPlayers (TournamentId, PlayerId)
-                    VALUES (%s, %s)
-                """, (tournament_id, player_id))
-        if players_per_team == 1:
-            for team in data.teams:
-                for player_id in team.players:
+            if data.players:
+                for player_id in data.players:
                     cur.execute("""
                         INSERT INTO TournamentPlayers (TournamentId, PlayerId)
                         VALUES (%s, %s)
@@ -1521,29 +1515,29 @@ def create_tournament(data: TournamentCreate):
         # =====================================================
         else:
             team_ids = []
-
-            for i, team in enumerate(data.teams):
+            for i, team in enumerate(data.teams or []):
                 cur.execute("""
                     INSERT INTO TournamentTeams (TournamentID, Name, Seed)
                     VALUES (%s, %s, %s)
                 """, (
-                    tournament_id,
-                    team.name,
-                    i + 1
-                ))
+                   tournament_id,
+                   team.name,
+                   i + 1
+               ))
 
-                team_id = cur.lastrowid
-                team_ids.append(team_id)
+               team_id = cur.lastrowid
+               team_ids.append(team_id)
 
-                for pos, player_id in enumerate(team.players):
-                    cur.execute("""
-                        INSERT INTO TournamentTeamPlayers 
-                        (TournamentTeamID, PlayerID, Position)
-                        VALUES (%s, %s, %s)
+               for pos, player_id in enumerate(team.players):
+                   cur.execute("""
+                       INSERT INTO TournamentTeamPlayers 
+                       (TournamentTeamID, PlayerID, Position)
+                       VALUES (%s, %s, %s)
                     """, (team_id, player_id, pos + 1))
 
-            # 🔥 GENERATE MATCHES (kun for teams)
             generate_groups_and_matches(cur, tournament_id, team_ids, group_count)
+
+       
 
         conn.commit()
 
