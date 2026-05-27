@@ -1513,28 +1513,33 @@ def create_tournament(data: TournamentCreate):
         # =====================================================
         # 🔥 TEAM MODE
         # =====================================================
-        else:
-            team_ids = []
-            for i, team in enumerate(data.teams or []):
-                cur.execute("""
-                    INSERT INTO TournamentTeams (TournamentID, Name, Seed)
-                    VALUES (%s, %s, %s)
-                """, (
-                   tournament_id,
-                   team.name,
-                   i + 1
-               ))
-               team_id = cur.lastrowid
-               team_ids.append(team_id)
+else:
+    if not data.teams:
+        return {"error": "teams missing"}
 
-               for pos, player_id in enumerate(team.players):
-                   cur.execute("""
-                       INSERT INTO TournamentTeamPlayers 
-                       (TournamentTeamID, PlayerID, Position)
-                       VALUES (%s, %s, %s)
-                    """, (team_id, player_id, pos + 1))
+    team_ids = []
 
-            generate_groups_and_matches(cur, tournament_id, team_ids, group_count)
+    for i, team in enumerate(data.teams):
+        cur.execute("""
+            INSERT INTO TournamentTeams (TournamentID, Name, Seed)
+            VALUES (%s, %s, %s)
+        """, (
+            tournament_id,
+            team.name,
+            i + 1
+        ))
+
+        team_id = cur.lastrowid
+        team_ids.append(team_id)
+
+        for pos, player_id in enumerate(team.players):
+            cur.execute("""
+                INSERT INTO TournamentTeamPlayers 
+                (TournamentTeamID, PlayerID, Position)
+                VALUES (%s, %s, %s)
+            """, (team_id, player_id, pos + 1))
+
+    generate_groups_and_matches(cur, tournament_id, team_ids, group_count)
 
        
 
