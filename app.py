@@ -1452,7 +1452,6 @@ class TournamentCreate(BaseModel):
 def create_tournament(data: TournamentCreate):
     conn = get_conn()
     cur = conn.cursor()
-
     try:
         # 🔥 1. GET matchtype info
         cur.execute("""
@@ -1466,11 +1465,15 @@ def create_tournament(data: TournamentCreate):
             return {"error": "Invalid match type"}
 
         players_per_team = mt["PlayerPerTeamDefault"]
-
         group_count = data.groupCount or 2
 
-        print("INSERT GROUP COUNT:", group_count, flush=True)
-        
+        # 🔥 VALIDATION
+        if players_per_team == 1 and not data.players:
+            return {"error": "players missing"}
+
+        if players_per_team > 1 and not data.teams:
+            return {"error": "teams missing"}
+
         # 🔥 2. CREATE TOURNAMENT
         cur.execute("""
             INSERT INTO Tournaments (
@@ -1485,7 +1488,7 @@ def create_tournament(data: TournamentCreate):
                 CreatedAt,
                 GroupCount
             )
-            VALUES (%s, %s, %s, %s, %s, %s, 'pending', %s, NOW(),%s)
+            VALUES (%s, %s, %s, %s, %s, %s, 'pending', %s, NOW(), %s)
         """, (
             data.name,
             data.matchTypeId,
@@ -1503,45 +1506,39 @@ def create_tournament(data: TournamentCreate):
         # 🔥 SINGLE PLAYER MODE
         # =====================================================
         if players_per_team == 1:
-            if data.players:
-                for player_id in data.players:
-                    cur.execute("""
-                        INSERT INTO TournamentPlayers (TournamentId, PlayerId)
-                        VALUES (%s, %s)
-                    """, (tournament_id, player_id))
+            for player_id in data.players:
+                cur.execute("""
+                    INSERT INTO TournamentPlayers (TournamentId, PlayerId)
+                    VALUES (%s, %s)
+                """, (tournament_id, player_id))
 
         # =====================================================
         # 🔥 TEAM MODE
         # =====================================================
-else:
-    if not data.teams:
-        return {"error": "teams missing"}
+        else:
+            team_ids = []
 
-    team_ids = []
+            for i, team in enumerate(data.teams):
+                cur.execute("""
+                    INSERT INTO TournamentTeams (TournamentID, Name, Seed)
+                    VALUES (%s, %s, %s)
+                """, (
+                    tournament_id,
+                    team.name,
+                    i + 1
+                ))
 
-    for i, team in enumerate(data.teams):
-        cur.execute("""
-            INSERT INTO TournamentTeams (TournamentID, Name, Seed)
-            VALUES (%s, %s, %s)
-        """, (
-            tournament_id,
-            team.name,
-            i + 1
-        ))
+                team_id = cur.lastrowid
+                team_ids.append(team_id)
 
-        team_id = cur.lastrowid
-        team_ids.append(team_id)
+                for pos, player_id in enumerate(team.players):
+                    cur.execute("""
+                        INSERT INTO TournamentTeamPlayers 
+                        (TournamentTeamID, PlayerID, Position)
+                        VALUES (%s, %s, %s)
+                    """, (team_id, player_id, pos + 1))
 
-        for pos, player_id in enumerate(team.players):
-            cur.execute("""
-                INSERT INTO TournamentTeamPlayers 
-                (TournamentTeamID, PlayerID, Position)
-                VALUES (%s, %s, %s)
-            """, (team_id, player_id, pos + 1))
-
-    generate_groups_and_matches(cur, tournament_id, team_ids, group_count)
-
-       
+            generate_groups_and_matches(cur, tournament_id, team_ids, group_count)
 
         conn.commit()
 
@@ -1556,100 +1553,6 @@ else:
 
     finally:
         conn.close()
-
-
-
-
-def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
-    import random
-
-    random.shuffle(team_ids)
-
-    groups = [[] for _ in range(group_count)]
-    for i, team in enumerate(team_ids):
-        groups[i % group_count].append(team)
-
-    def round_robin(teams, group_no):
-        for i in range(len(teams)):
-            for j in range(i + 1, len(teams)):
-                cur.execute("""
-                    INSERT INTO TournamentMatches (
-                        TournamentID,
-                        HomeTeamID,
-                        AwayTeamID,
-                        Round,
-                        Stage,
-                        GroupNo,
-                        Status,
-                        CreatedAt
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, 'pending', NOW())
-                """, (
-                    tournament_id,
-                    teams[i],
-                    teams[j],
-                    1,
-                    "group",
-                    group_no
-                ))
-
-    # 🔥 DETTE SKAL VÆRE INDENI FUNKTIONEN
-    for index, group in enumerate(groups):
-        group_no = index + 1
-        group_name = chr(65 + index)
-
-        round_robin(group, group_no)
-
-        for team_id in group:
-            print("UPDATING TEAM", team_id, "→", group_name)  # 🔥 DEBUG
-            cur.execute("""
-                UPDATE TournamentTeams
-                SET GroupName = %s
-                WHERE ID = %s
-            """, (group_name, team_id))
-
-    min_group_size = min(len(g) for g in groups)
-    for i in range(min_group_size):
-        cur.execute("""
-            INSERT INTO TournamentMatches (
-                TournamentID,
-                Round,
-                Stage,
-                PlacementFrom,
-                PlacementTo,
-                Status,
-                CreatedAt
-            )
-            VALUES (%s, %s, %s, %s, %s, 'pending', NOW())
-        """, (
-            tournament_id,
-            2,
-            "placement",
-            i*2+1,
-            i*2+2
-        ))
-
-
-
-
-
-
-@app.get("/tournaments")
-def get_tournaments():
-    conn = get_conn()
-    cur = conn.cursor()
-    
-    cur.execute("""
-        SELECT ID as id, Name as name
-        FROM Tournaments
-        ORDER BY CreatedAt DESC
-    """)
-    
-    rows = cur.fetchall()
-    conn.close()
-    
-    return rows
-
 
 
 
