@@ -1744,3 +1744,51 @@ def get_tokens():
         return []
     finally:
         conn.close()
+
+
+def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
+    import random
+
+    random.shuffle(team_ids)
+
+    groups = [[] for _ in range(group_count)]
+
+    for i, team in enumerate(team_ids):
+        groups[i % group_count].append(team)
+
+    def round_robin(teams, group_no):
+        for i in range(len(teams)):
+            for j in range(i + 1, len(teams)):
+                cur.execute("""
+                    INSERT INTO TournamentMatches (
+                        TournamentID,
+                        HomeTeamID,
+                        AwayTeamID,
+                        Round,
+                        Stage,
+                        GroupNo,
+                        Status,
+                        CreatedAt
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, 'pending', NOW())
+                """, (
+                    tournament_id,
+                    teams[i],
+                    teams[j],
+                    1,
+                    "group",
+                    group_no
+                ))
+
+    for index, group in enumerate(groups):
+        group_no = index + 1
+        group_name = chr(65 + index)
+
+        round_robin(group, group_no)
+
+        for team_id in group:
+            cur.execute("""
+                UPDATE TournamentTeams
+                SET GroupName = %s
+                WHERE ID = %s
+            """, (group_name, team_id))
