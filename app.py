@@ -14,7 +14,6 @@ from fastapi import WebSocket
 
 
 
-
 hold_state = {
     "home": 0,
     "away": 0
@@ -1599,26 +1598,9 @@ def get_full_view(tournament_id: int):
     return {
         "groups": groups,
         "finals": []
-    } 
+    }
 
 
-@app.get("/tournaments")
-def get_tournaments():
-    conn = get_conn()
-    cur = conn.cursor()
-
-    cur.execute("""
-        SELECT
-            ID as id,
-            Name as name
-        FROM Tournaments
-        ORDER BY ID DESC
-    """)
-
-    rows = cur.fetchall()
-    conn.close()
-
-    return rows
 
 
 
