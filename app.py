@@ -1598,7 +1598,7 @@ def get_full_view(tournament_id: int):
     return {
         "groups": groups,
         "finals": []
-    }
+    } 
 
 
 @app.get("/tournaments")
