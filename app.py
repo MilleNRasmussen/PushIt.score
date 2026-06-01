@@ -1792,3 +1792,22 @@ def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
                 SET GroupName = %s
                 WHERE ID = %s
             """, (group_name, team_id))
+
+
+@app.get("/tournaments")
+def get_tournaments():
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT
+            ID as id,
+            Name as name
+        FROM Tournaments
+        ORDER BY ID DESC
+    """)
+
+    rows = cur.fetchall()
+    conn.close()
+
+    return rows
