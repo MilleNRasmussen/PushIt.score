@@ -1819,19 +1819,27 @@ def get_tournament_plan(tournament_id: int):
     cur = conn.cursor()
 
     cur.execute("""
+        
         SELECT
             tm.ID,
             tm.GroupNo,
-            ht.Name as HomeTeam,
-            at.Name as AwayTeam,
-            tm.HomeScore,
-            tm.AwayScore,
-            tm.Status
+            tm.MatchID,
+            ht.Name AS HomeTeam,
+            at.Name AS AwayTeam,
+            msa.HomeTeamPoint AS HomeScore,
+            msa.AwayTeamPoint AS AwayScore
         FROM TournamentMatches tm
-        JOIN TournamentTeams ht ON ht.ID = tm.HomeTeamID
-        JOIN TournamentTeams at ON at.ID = tm.AwayTeamID
+        LEFT JOIN TournamentTeams ht
+        ON ht.ID = tm.HomeTeamID
+        LEFT JOIN TournamentTeams at
+        ON at.ID = tm.AwayTeamID
+        LEFT JOIN MatchesScoreActual msa
+        ON msa.MatchHeaderID = tm.MatchID
         WHERE tm.TournamentID = %s
         ORDER BY tm.GroupNo, tm.ID
+
+
+        
     """, (tournament_id,))
 
     rows = cur.fetchall()
