@@ -1811,3 +1811,30 @@ def get_tournaments():
     conn.close()
 
     return rows
+
+
+@app.get("/tournaments/{tournament_id}/plan")
+def get_tournament_plan(tournament_id: int):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT
+            tm.ID,
+            tm.GroupNo,
+            ht.Name as HomeTeam,
+            at.Name as AwayTeam,
+            tm.HomeScore,
+            tm.AwayScore,
+            tm.Status
+        FROM TournamentMatches tm
+        JOIN TournamentTeams ht ON ht.ID = tm.HomeTeamID
+        JOIN TournamentTeams at ON at.ID = tm.AwayTeamID
+        WHERE tm.TournamentID = %s
+        ORDER BY tm.GroupNo, tm.ID
+    """, (tournament_id,))
+
+    rows = cur.fetchall()
+    conn.close()
+
+    return rows
