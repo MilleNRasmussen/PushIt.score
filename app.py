@@ -1757,28 +1757,52 @@ def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
         groups[i % group_count].append(team)
 
     def round_robin(teams, group_no):
-        for i in range(len(teams)):
-            for j in range(i + 1, len(teams)):
-                cur.execute("""
-                    INSERT INTO TournamentMatches (
-                        TournamentID,
-                        HomeTeamID,
-                        AwayTeamID,
-                        Round,
-                        Stage,
-                        GroupNo,
-                        Status,
-                        CreatedAt
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, 'pending', NOW())
-                """, (
-                    tournament_id,
-                    teams[i],
-                    teams[j],
-                    1,
-                    "group",
-                    group_no
-                ))
+        teams = teams[:]
+
+        if len(teams) % 2:
+            teams.append(None)
+
+        rounds = len(teams) - 1
+
+        for round_no in range(rounds):
+
+            for i in range(len(teams) // 2):
+                home = teams[i]
+               away = teams[-1 - i]
+
+               if home and away:
+                   cur.execute("""
+                       INSERT INTO TournamentMatches (
+                           TournamentID,
+                           HomeTeamID,
+                           AwayTeamID,
+                           Round,
+                           Stage,
+                           GroupNo,
+                           Status,
+                           CreatedAt
+                       )
+                       VALUES (%s, %s, %s, %s, %s, %s, 'pending', NOW())
+                   """, (
+                       tournament_id,
+                       home,
+                       away,
+                       round_no + 1,
+                       "group",
+                       group_no
+                   ))
+
+          teams = (
+              [teams[0]]
+              + [teams[-1]]
+              + teams[1:-1]
+          )
+
+
+
+
+
+   
 
     for index, group in enumerate(groups):
         group_no = index + 1
@@ -1836,7 +1860,7 @@ def get_tournament_plan(tournament_id: int):
         LEFT JOIN MatchesScoreActual msa
         ON msa.MatchHeaderID = tm.MatchID
         WHERE tm.TournamentID = %s
-        ORDER BY tm.GroupNo, tm.ID
+        ORDER BY tm.GroupNo, tm.Round, tm.ID
 
 
         
