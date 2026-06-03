@@ -1769,7 +1769,7 @@ def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
             for i in range(len(teams) // 2):
                 home = teams[i]
                 away = teams[-1 - i]
-
+            
                 if home and away:
                     cur.execute("""
                         INSERT INTO TournamentMatches (
@@ -1791,11 +1791,11 @@ def generate_groups_and_matches(cur, tournament_id, team_ids, group_count):
                        "group",
                        group_no
                    ))
-
-          teams = (
-              [teams[0]]
-              + [teams[-1]]
-              + teams[1:-1]
+          
+            teams = (
+                [teams[0]]
+                + [teams[-1]]
+                + teams[1:-1]
           )
 
 
