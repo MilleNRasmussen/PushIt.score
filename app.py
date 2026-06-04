@@ -1870,3 +1870,49 @@ def get_tournament_plan(tournament_id: int):
     conn.close()
 
     return rows
+
+
+class TournamentGroupCreate(BaseModel):
+    group: str
+    screenToken: str | None = None
+    homeFlic: str | None = None
+    awayFlic: str | None = None
+
+
+@app.post("/tournaments/{tournament_id}/groups")
+def create_tournament_groups(
+    tournament_id: int,
+    groups: list[TournamentGroupCreate]
+):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        for g in groups:
+            cur.execute("""
+                INSERT INTO TournamentGroups (
+                    TournamentID,
+                    GroupName,
+                    ScreenToken,
+                    HomeFlicID,
+                    AwayFlicID
+                )
+                VALUES (%s,%s,%s,%s,%s)
+            """, (
+                tournament_id,
+                g.group,
+                g.screenToken,
+                g.homeFlic,
+                g.awayFlic
+            ))
+
+        conn.commit()
+
+        return {"success": True}
+
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
