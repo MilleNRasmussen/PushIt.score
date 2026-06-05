@@ -1036,22 +1036,22 @@ async def webhook_point(request: Request):
       
 
 
-       if not user:
+        if not user:
 
-           cur.execute("""
-               SELECT 1
-               FROM TournamentGroups
-               WHERE HomeFlicID = %s
-                  OR AwayFlicID = %s
-               LIMIT 1
-           """, (button_id, button_id))
+            cur.execute("""
+                SELECT 1
+                FROM TournamentGroups
+                WHERE HomeFlicID = %s
+                   OR AwayFlicID = %s
+                LIMIT 1
+            """, (button_id, button_id))
 
-           tournament_flic = cur.fetchone()
+            tournament_flic = cur.fetchone()
 
-           if not tournament_flic:
-               print("BROADCAST: pairing", flush=True)
-               broadcast_flic(button_id)
-               return {"status": "pairing"}
+            if not tournament_flic:
+                print("BROADCAST: pairing", flush=True)
+                broadcast_flic(button_id)
+                return {"status": "pairing"}
 
 
 
