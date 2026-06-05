@@ -662,6 +662,7 @@ def get_live_match(token: str):
                 GroupName
             FROM TournamentGroups
             WHERE ScreenToken = %s
+            ORDER BY CreatedAt DESC
             LIMIT 1
         """, (token,))
 
