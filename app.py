@@ -1033,10 +1033,33 @@ async def webhook_point(request: Request):
         """, (button_id,))
         user = cur.fetchone()
 
-        if not user:
-            print("BROADCAST: pairing", flush=True)
-            broadcast_flic(button_id)
-            return {"status": "pairing"}
+      
+
+
+       if not user:
+
+           cur.execute("""
+               SELECT 1
+               FROM TournamentGroups
+               WHERE HomeFlicID = %s
+                  OR AwayFlicID = %s
+               LIMIT 1
+           """, (button_id, button_id))
+
+           tournament_flic = cur.fetchone()
+
+           if not tournament_flic:
+               print("BROADCAST: pairing", flush=True)
+               broadcast_flic(button_id)
+               return {"status": "pairing"}
+
+
+
+       
+
+
+
+       
         else:
             print("BROADCAST: known", user["Navn"], flush=True)
             broadcast_known(button_id, user["Navn"])
