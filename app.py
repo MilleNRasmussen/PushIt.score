@@ -2055,7 +2055,8 @@ def get_tournament_plan(tournament_id: int):
             ht.Name AS HomeTeam,
             at.Name AS AwayTeam,
             msa.HomeTeamPoint AS HomeScore,
-            msa.AwayTeamPoint AS AwayScore
+            msa.AwayTeamPoint AS AwayScore,
+            mh.Status
         FROM TournamentMatches tm
         LEFT JOIN TournamentTeams ht
         ON ht.ID = tm.HomeTeamID
@@ -2063,6 +2064,8 @@ def get_tournament_plan(tournament_id: int):
         ON at.ID = tm.AwayTeamID
         LEFT JOIN MatchesScoreActual msa
         ON msa.MatchHeaderID = tm.MatchID
+        LEFT JOIN MatchHeader mh
+        ON mh.ID = tm.MatchID
         WHERE tm.TournamentID = %s
         ORDER BY tm.GroupNo, tm.Round, tm.ID
 
