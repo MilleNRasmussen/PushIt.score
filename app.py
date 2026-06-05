@@ -731,6 +731,7 @@ def get_live_match(token: str):
                 MatchTypeID,
                 MatchGameModeID,
                 PublicToken,
+                TournamentID,
                 Status,
                 StartedAt,
                 Timestamp
@@ -739,6 +740,7 @@ def get_live_match(token: str):
             (
                 %s,
                 2,
+                %s,
                 %s,
                 'Live',
                 NOW(),
