@@ -748,7 +748,8 @@ def get_live_match(token: str):
             )
         """, (
             match_type_id,
-            token
+            token,
+            tournament_id
         ))
 
         match_id = cur.lastrowid
