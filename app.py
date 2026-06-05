@@ -689,10 +689,11 @@ def get_live_match(token: str):
                 AwayTeamID
             FROM TournamentMatches
             WHERE TournamentID = %s
+            AND GroupNo = %s
             AND MatchID IS NULL
             ORDER BY Round, ID
             LIMIT 1
-        """, (tournament_id))
+        """, (tournament_id, Group_No))
 
         tm = cur.fetchone()
 
