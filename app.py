@@ -1727,17 +1727,15 @@ def get_tokens():
     cur = conn.cursor()
     try:
         cur.execute("""
-            SELECT PublicToken
+            SELECT PublicToken,
+                   DefaultMatchTypeID
             FROM CustomerClub
             WHERE IsActive = 1
         """)
         
         rows = cur.fetchall()
 
-        # returnér som array
-        tokens = [r["PublicToken"] for r in rows]
-
-        return tokens
+        return rows
 
     except Exception as e:
         print("ERROR tokens:", e)
