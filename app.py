@@ -693,7 +693,7 @@ def get_live_match(token: str):
             AND MatchID IS NULL
             ORDER BY Round, ID
             LIMIT 1
-        """, (tournament_id, Group_No))
+        """, (tournament_id, group_no))
 
         tm = cur.fetchone()
 
