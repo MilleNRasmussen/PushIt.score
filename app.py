@@ -973,11 +973,17 @@ def get_match_token(match_id: int):
 # ===============================
 # HELPER
 # ===============================
+
+
+
 def get_match_data(cur, button_id):
+
+    # =====================================
+    # NORMAL PLAYER FLIC
+    # =====================================
     cur.execute("""
         SELECT
             mh.ID as match_id,
-            mt.StoredProcedureName,
             mp.PlayerNumber,
             (
                 SELECT COUNT(*)
@@ -987,7 +993,6 @@ def get_match_data(cur, button_id):
         FROM Users u
         JOIN MatchPlayers mp ON mp.PlayerID = u.ID
         JOIN MatchHeader mh ON mh.ID = mp.MatchID
-        JOIN MatchType mt ON mt.ID = mh.MatchTypeID
         WHERE u.ButtonID = %s
         AND mh.Status IN ('Live','Paused','ManualPaused','FinishedPending')
         ORDER BY mh.ID DESC
@@ -995,18 +1000,70 @@ def get_match_data(cur, button_id):
     """, (button_id,))
 
     row = cur.fetchone()
-    if not row:
-        return None
 
-    if row["total_players"] == 2:
-        is_home = 1 if row["PlayerNumber"] == 1 else 0
-    else:
-        is_home = 1 if row["PlayerNumber"] in (1, 2) else 0
+    if row:
 
-    return {
-        "match_id": row["match_id"],
-        "team": "home" if is_home else "away"
-    }
+        if row["total_players"] == 2:
+            is_home = row["PlayerNumber"] == 1
+        else:
+            is_home = row["PlayerNumber"] in (1, 2)
+
+        return {
+            "match_id": row["match_id"],
+            "team": "home" if is_home else "away"
+        }
+
+    # =====================================
+    # TOURNAMENT FLIC
+    # =====================================
+    cur.execute("""
+        SELECT
+            mh.ID as match_id,
+            CASE
+                WHEN tg.HomeFlicID = %s THEN 'home'
+                ELSE 'away'
+            END as team
+        FROM TournamentGroups tg
+        JOIN MatchHeader mh
+            ON mh.PublicToken = tg.ScreenToken
+        WHERE (
+            tg.HomeFlicID = %s
+            OR tg.AwayFlicID = %s
+        )
+        AND mh.Status IN (
+            'Live',
+            'Paused',
+            'ManualPaused',
+            'FinishedPending'
+        )
+        ORDER BY mh.ID DESC
+        LIMIT 1
+    """, (
+        button_id,
+        button_id,
+        button_id
+    ))
+
+    row = cur.fetchone()
+
+    if row:
+        return {
+            "match_id": row["match_id"],
+            "team": row["team"]
+        }
+
+    return None
+
+
+
+
+
+
+
+
+
+
+
 
 
 
