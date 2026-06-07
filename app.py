@@ -1072,27 +1072,32 @@ def get_match_data(cur, button_id):
 @app.post("/webhook_point")
 async def webhook_point(request: Request):
 
-    print("BUTTON:", button_id, flush=True)
-
-    cur.execute("""
-        SELECT Navn
-        FROM Users
-        WHERE ButtonID = %s
-    """, (button_id,))
-
-    user = cur.fetchone()
-
-    print("USER:", user, flush=True)
-   
     conn = get_conn()
     cur = conn.cursor()
     try:
         print("ENDPOINT: POINT", flush=True)
 
         button_id = request.headers.get("button-serial-number")
+   
         if not button_id:
             return {"error": "No button id"}
 
+
+        cur.execute("""
+            SELECT Navn
+            FROM Users
+            WHERE ButtonID = %s
+        """, (button_id,))
+
+        user = cur.fetchone()
+
+        print("USER:", user, flush=True)
+
+
+
+
+
+       
         data = get_match_data(cur, button_id)
 
         # 🔥 TILFØJET: altid tjek og broadcast
