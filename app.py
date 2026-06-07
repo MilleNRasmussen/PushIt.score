@@ -1074,18 +1074,20 @@ def get_match_data(cur, button_id):
 
 @app.post("/webhook_point")
 async def webhook_point(request: Request):
-
     conn = get_conn()
     cur = conn.cursor()
+
     try:
         print("ENDPOINT: POINT", flush=True)
 
         button_id = request.headers.get("button-serial-number")
-   
+
         if not button_id:
             return {"error": "No button id"}
 
-
+        # =====================================
+        # FIND BRUGER
+        # =====================================
         cur.execute("""
             SELECT Navn
             FROM Users
@@ -1096,54 +1098,76 @@ async def webhook_point(request: Request):
 
         print("USER:", user, flush=True)
 
-
-
-
-
-       
-        data = get_match_data(cur, button_id)
-
-        # 🔥 TILFØJET: altid tjek og broadcast
-        cur.execute("""
-            SELECT Navn
-            FROM Users
-            WHERE ButtonID = %s
-        """, (button_id,))
-        user = cur.fetchone()
-
-      
-
-
+        # =====================================
+        # UKENDT FLIC -> PAIRING
+        # =====================================
         if not user:
             print("BROADCAST: pairing", flush=True)
             broadcast_flic(button_id)
-            return {"status": "pairing"}
 
+            return {
+                "status": "pairing"
+            }
+
+        # =====================================
+        # KENDT FLIC -> VIS NAVN
+        # =====================================
         print("BROADCAST: known", user["Navn"], flush=True)
-        broadcast_known(button_id, user["Navn"])
+
+        broadcast_known(
+            button_id,
+            user["Navn"]
+        )
+
+        # =====================================
+        # FIND AKTIV KAMP
+        # =====================================
+        data = get_match_data(cur, button_id)
+
+        print("MATCH DATA:", data, flush=True)
 
         if not data:
-            return {"status": "known_no_match"}
+            return {
+                "status": "known_no_match"
+            }
 
-        print("ENDPOINT: SP_InsertScore", flush=True)
-
+        # =====================================
+        # INDSÆT POINT
+        # =====================================
         is_home = 1 if data["team"] == "home" else 0
+
+        print(
+            "SP_InsertScore",
+            button_id,
+            is_home,
+            flush=True
+        )
 
         cur.callproc(
             "SP_InsertScore",
-            (button_id, "single", is_home)
+            (
+                button_id,
+                "single",
+                is_home
+            )
         )
 
         conn.commit()
-        return {"status": "ok"}
+
+        return {
+            "status": "ok"
+        }
 
     except Exception as e:
+        print("ERROR:", str(e), flush=True)
         conn.rollback()
-        return {"error": str(e)}
+
+        return {
+            "error": str(e)
+        }
 
     finally:
         conn.close()
-
 
 
 @app.post("/webhook_delete_point")
