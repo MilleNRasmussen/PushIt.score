@@ -117,11 +117,14 @@ async def flic_events():
 # BROADCAST FUNCTIONS (beholdt)
 # =====================================================
 def broadcast_flic(button_id):
+    print("PAIR EVENT:", button_id, flush=True)
+   
     for queue in clients:
         queue.put_nowait({
             "type": "pairing",
             "flic_id": button_id
         })
+  
 
 def broadcast_known(button_id, name):
     for queue in clients:
