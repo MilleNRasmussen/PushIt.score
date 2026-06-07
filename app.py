@@ -1086,7 +1086,39 @@ async def webhook_point(request: Request):
             return {"error": "No button id"}
 
         # =====================================
-        # FIND BRUGER
+        # 1. FIND MATCH (SPILLER ELLER TURNERING)
+        # =====================================
+        data = get_match_data(cur, button_id)
+
+        print("MATCH DATA:", data, flush=True)
+
+        if data:
+            is_home = 1 if data["team"] == "home" else 0
+
+            print(
+                "SP_InsertScore",
+                button_id,
+                is_home,
+                flush=True
+            )
+
+            cur.callproc(
+                "SP_InsertScore",
+                (
+                    button_id,
+                    "single",
+                    is_home
+                )
+            )
+
+            conn.commit()
+
+            return {
+                "status": "ok"
+            }
+
+        # =====================================
+        # 2. FINDES KNAPPEN PÅ EN BRUGER?
         # =====================================
         cur.execute("""
             SELECT Navn
@@ -1098,68 +1130,30 @@ async def webhook_point(request: Request):
 
         print("USER:", user, flush=True)
 
-        # =====================================
-        # UKENDT FLIC -> PAIRING
-        # =====================================
-        if not user:
-            print("BROADCAST: pairing", flush=True)
-            broadcast_flic(button_id)
+        if user:
+            broadcast_known(
+                button_id,
+                user["Navn"]
+            )
 
-            return {
-                "status": "pairing"
-            }
-
-        # =====================================
-        # KENDT FLIC -> VIS NAVN
-        # =====================================
-        print("BROADCAST: known", user["Navn"], flush=True)
-
-        broadcast_known(
-            button_id,
-            user["Navn"]
-        )
-
-        # =====================================
-        # FIND AKTIV KAMP
-        # =====================================
-        data = get_match_data(cur, button_id)
-
-        print("MATCH DATA:", data, flush=True)
-
-        if not data:
             return {
                 "status": "known_no_match"
             }
 
         # =====================================
-        # INDSÆT POINT
+        # 3. UKENDT KNAP -> PAIRING
         # =====================================
-        is_home = 1 if data["team"] == "home" else 0
+        print("BROADCAST: pairing", flush=True)
 
-        print(
-            "SP_InsertScore",
-            button_id,
-            is_home,
-            flush=True
-        )
-
-        cur.callproc(
-            "SP_InsertScore",
-            (
-                button_id,
-                "single",
-                is_home
-            )
-        )
-
-        conn.commit()
+        broadcast_flic(button_id)
 
         return {
-            "status": "ok"
+            "status": "pairing"
         }
 
     except Exception as e:
         print("ERROR:", str(e), flush=True)
+
         conn.rollback()
 
         return {
