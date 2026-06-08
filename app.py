@@ -193,7 +193,7 @@ def close_finished_matches():
                 FinishedAt = NOW()
             WHERE Status = 'FinishedPending'
             
-            AND Timestamp < NOW() - INTERVAL 15 SECOND;
+            AND Timestamp < NOW() - INTERVAL 10 SECOND;
         """)
         conn.commit()
     finally:
