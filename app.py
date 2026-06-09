@@ -2337,6 +2337,7 @@ def get_full_view(tournament_id: int):
     conn.close()
 
     return {
+        "test": "CLAUS_WAS_HERE",
         "groups": groups,
         "finals": []
     }
