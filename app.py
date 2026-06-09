@@ -1862,49 +1862,6 @@ def create_tournament(data: TournamentCreate):
 
 
 
-@app.get("/tournaments/{tournament_id}/full-view")
-def get_full_view(tournament_id: int):
-    conn = get_conn()
-    cur = conn.cursor()
-
-    # 🔥 hent teams + stats
-    cur.execute("""
-        SELECT 
-            tt.ID as TeamID,
-            tt.Name,
-            tt.GroupName,
-            0 as Played,
-            0 as Wins,
-            0 as GoalsScored,
-            0 as GoalsAgainst
-        FROM TournamentTeams tt
-        WHERE tt.TournamentID = %s
-    """, (tournament_id,))
-
-    rows = cur.fetchall()
-
-    # 🔥 GROUPS (det vigtige)
-    groups = {}
-
-    for r in rows:
-        group = r["GroupName"] or "A"  # fallback
-
-        if group not in groups:
-            groups[group] = []
-
-        groups[group].append({
-            "TeamID": r["TeamID"],
-            "Name": r["Name"],
-            "Played": 0,
-            "Wins": 0,
-            "GoalsScored": 0,
-            "GoalsAgainst": 0
-        })
-
-    return {
-        "groups": groups,
-        "finals": []
-    }
 
 
 
@@ -2226,7 +2183,7 @@ def create_tournament_groups(
 
 
 
-@app.get("/tournaments/{tournament_id}/full-view1")
+@app.get("/tournaments/{tournament_id}/full-view")
 def get_full_view_v2(tournament_id: int):
     conn = get_conn()
     cur = conn.cursor()
