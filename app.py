@@ -2223,3 +2223,120 @@ def create_tournament_groups(
 
     finally:
         conn.close()
+
+
+
+@app.get("/tournaments/{tournament_id}/full-view")
+def get_full_view(tournament_id: int):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    # Hold
+    cur.execute("""
+        SELECT
+            ID as TeamID,
+            Name,
+            GroupName
+        FROM TournamentTeams
+        WHERE TournamentID = %s
+    """, (tournament_id,))
+
+    teams = cur.fetchall()
+
+    stats = {}
+
+    for t in teams:
+        stats[t["TeamID"]] = {
+            "TeamID": t["TeamID"],
+            "Name": t["Name"],
+            "GroupName": t["GroupName"],
+            "Played": 0,
+            "Wins": 0,
+            "Draws": 0,
+            "GoalsScored": 0,
+            "GoalsAgainst": 0,
+            "Points": 0
+        }
+
+    # Spillede kampe
+    cur.execute("""
+        SELECT
+            tm.HomeTeamID,
+            tm.AwayTeamID,
+            msa.HomeTeamPoint,
+            msa.AwayTeamPoint
+        FROM TournamentMatches tm
+        JOIN MatchHeader mh
+            ON mh.ID = tm.MatchID
+        JOIN MatchesScoreActual msa
+            ON msa.MatchHeaderID = mh.ID
+        WHERE tm.TournamentID = %s
+        AND mh.Status IN ('Finished','FinishedPending','Closed')
+    """, (tournament_id,))
+
+    matches = cur.fetchall()
+
+    for m in matches:
+
+        home = stats.get(m["HomeTeamID"])
+        away = stats.get(m["AwayTeamID"])
+
+        if not home or not away:
+            continue
+
+        home_score = m["HomeTeamPoint"] or 0
+        away_score = m["AwayTeamPoint"] or 0
+
+        home["Played"] += 1
+        away["Played"] += 1
+
+        home["GoalsScored"] += home_score
+        home["GoalsAgainst"] += away_score
+
+        away["GoalsScored"] += away_score
+        away["GoalsAgainst"] += home_score
+
+        if home_score > away_score:
+            home["Wins"] += 1
+            home["Points"] += 2
+
+        elif away_score > home_score:
+            away["Wins"] += 1
+            away["Points"] += 2
+
+        else:
+            home["Draws"] += 1
+            away["Draws"] += 1
+
+            home["Points"] += 1
+            away["Points"] += 1
+
+    groups = {}
+
+    for team in stats.values():
+
+        group = team["GroupName"] or "A"
+
+        if group not in groups:
+            groups[group] = []
+
+        groups[group].append(team)
+
+    # Sortering
+    for group in groups:
+
+        groups[group].sort(
+            key=lambda t: (
+                t["Points"],
+                t["GoalsScored"] - t["GoalsAgainst"],
+                t["GoalsScored"]
+            ),
+            reverse=True
+        )
+
+    conn.close()
+
+    return {
+        "groups": groups,
+        "finals": []
+    }
