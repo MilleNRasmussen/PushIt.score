@@ -170,6 +170,7 @@ def pause_inactive_matches():
             SET mh.Status='SystemPaused',
                 PausedAt = NOW()
             WHERE mh.Status='Live'
+            AND mh.TournamentID IS NULL
             AND COALESCE(md.LastPoint, mh.StartedAt) < NOW() - INTERVAL 4 MINUTE;
         """)
 
