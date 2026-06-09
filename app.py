@@ -2226,8 +2226,8 @@ def create_tournament_groups(
 
 
 
-@app.get("/tournaments/{tournament_id}/full-view")
-def get_full_view(tournament_id: int):
+@app.get("/tournaments/{tournament_id}/full-view1")
+def get_full_view_v2(tournament_id: int):
     conn = get_conn()
     cur = conn.cursor()
 
