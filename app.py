@@ -644,7 +644,7 @@ def get_live_match(token: str):
             SELECT ID, Status
             FROM MatchHeader
             WHERE PublicToken = %s
-            AND Status IN ('Live','FinishedPending')
+            AND Status IN ('Live','FinishedPending','SystemPaused')
             ORDER BY ID DESC
             LIMIT 1
         """, (token,))
