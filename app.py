@@ -638,19 +638,35 @@ def get_live_match(token: str):
 
     try:
 
-        # ==========================================
-        # 1. Find aktiv kamp som i dag
-        # ==========================================
+        # 1. Aktiv turneringskamp først
         cur.execute("""
-            SELECT ID, Status
-            FROM MatchHeader
-            WHERE PublicToken = %s
-            AND Status IN ('Live','FinishedPending','SystemPaused')
-            ORDER BY ID DESC
+            SELECT mh.ID, mh.Status
+            FROM MatchHeader mh
+            JOIN Tournaments t
+            ON t.ID = mh.TournamentID
+            WHERE mh.PublicToken = %s
+            AND mh.Status IN ('Live','FinishedPending','SystemPaused')
+            AND t.Status <> 'Closed'
+            ORDER BY mh.ID DESC
             LIMIT 1
         """, (token,))
 
         match = cur.fetchone()
+
+        if not match:
+            
+            # 2. Almindelig kamp bagefter
+            cur.execute("""
+                SELECT ID, Status
+                FROM MatchHeader
+                WHERE PublicToken = %s
+                AND TournamentID IS NULL
+                AND Status IN ('Live','FinishedPending','SystemPaused')
+                ORDER BY ID DESC
+                LIMIT 1
+             """, (token,))
+             
+            match = cur.fetchone()
 
         if match:
             return {
@@ -658,6 +674,15 @@ def get_live_match(token: str):
                 "status": match["Status"]
             }
 
+
+
+
+
+
+
+
+
+        
         # ==========================================
         # 2. Er token koblet til en turneringsgruppe?
         # ==========================================
