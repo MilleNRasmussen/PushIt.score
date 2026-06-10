@@ -630,7 +630,7 @@ async def flic_webhook_away(request: Request):
 # Live token
 # =====================================================
 
-app.get("/api/live/{token}")
+@app.get("/api/live/{token}")
 def get_live_match(token: str):
     conn = get_conn()
     cur = conn.cursor()
