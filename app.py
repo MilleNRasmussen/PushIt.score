@@ -630,61 +630,15 @@ async def flic_webhook_away(request: Request):
 # Live token
 # =====================================================
 
-
-@app.get("/api/live/{token}")
+app.get("/api/live/{token}")
 def get_live_match(token: str):
     conn = get_conn()
     cur = conn.cursor()
 
     try:
 
-        # 1. Aktiv turneringskamp først
-        cur.execute("""
-            SELECT mh.ID, mh.Status
-            FROM MatchHeader mh
-            JOIN Tournaments t
-            ON t.ID = mh.TournamentID
-            WHERE mh.PublicToken = %s
-            AND mh.Status IN ('Live','FinishedPending','SystemPaused')
-            AND t.Status <> 'Closed'
-            ORDER BY mh.ID DESC
-            LIMIT 1
-        """, (token,))
-
-        match = cur.fetchone()
-
-        if not match:
-            
-            # 2. Almindelig kamp bagefter
-            cur.execute("""
-                SELECT ID, Status
-                FROM MatchHeader
-                WHERE PublicToken = %s
-                AND TournamentID IS NULL
-                AND Status IN ('Live','FinishedPending','SystemPaused')
-                ORDER BY ID DESC
-                LIMIT 1
-             """, (token,))
-             
-            match = cur.fetchone()
-
-        if match:
-            return {
-                "match_id": match["ID"],
-                "status": match["Status"]
-            }
-
-
-
-
-
-
-
-
-
-        
         # ==========================================
-        # 2. Er token koblet til en turneringsgruppe?
+        # 1. Er token koblet til en turnering?
         # ==========================================
         cur.execute("""
             SELECT
@@ -698,188 +652,236 @@ def get_live_match(token: str):
 
         group = cur.fetchone()
 
-        if not group:
+        # ==========================================
+        # TURNERING
+        # ==========================================
+        if group:
+
+            tournament_id = group["TournamentID"]
+            group_name = group["GroupName"]
+            group_no = ord(group_name.upper()) - 64
+
+            # Find aktiv turneringskamp
+            cur.execute("""
+                SELECT
+                    mh.ID,
+                    mh.Status
+                FROM MatchHeader mh
+                JOIN Tournaments t
+                    ON t.ID = mh.TournamentID
+                WHERE mh.PublicToken = %s
+                AND mh.TournamentID = %s
+                AND mh.Status IN (
+                    'Live',
+                    'FinishedPending',
+                    'SystemPaused'
+                )
+                AND t.Status <> 'Closed'
+                ORDER BY mh.ID DESC
+                LIMIT 1
+            """, (
+                token,
+                tournament_id
+            ))
+
+            match = cur.fetchone()
+
+            if match:
+                return {
+                    "match_id": match["ID"],
+                    "status": match["Status"]
+                }
+
+            # ==========================================
+            # Find næste kamp der mangler MatchID
+            # ==========================================
+            cur.execute("""
+                SELECT
+                    ID,
+                    HomeTeamID,
+                    AwayTeamID
+                FROM TournamentMatches
+                WHERE TournamentID = %s
+                AND GroupNo = %s
+                AND MatchID IS NULL
+                ORDER BY Round, ID
+                LIMIT 1
+            """, (
+                tournament_id,
+                group_no
+            ))
+
+            tm = cur.fetchone()
+
+            if not tm:
+                return {
+                    "match_id": None,
+                    "status": "group_finished"
+                }
+
+            # ==========================================
+            # Hent sport
+            # ==========================================
+            cur.execute("""
+                SELECT Sport
+                FROM Tournaments
+                WHERE ID = %s
+                LIMIT 1
+            """, (tournament_id,))
+
+            tournament = cur.fetchone()
+
+            if not tournament:
+                return {
+                    "match_id": None,
+                    "status": "tournament_missing"
+                }
+
+            match_type_id = tournament["Sport"]
+
+            # ==========================================
+            # Opret MatchHeader
+            # ==========================================
+            cur.execute("""
+                INSERT INTO MatchHeader
+                (
+                    MatchTypeID,
+                    MatchGameModeID,
+                    PublicToken,
+                    TournamentID,
+                    Status,
+                    StartedAt,
+                    Timestamp
+                )
+                VALUES
+                (
+                    %s,
+                    2,
+                    %s,
+                    %s,
+                    'Live',
+                    NOW(),
+                    NOW()
+                )
+            """, (
+                match_type_id,
+                token,
+                tournament_id
+            ))
+
+            match_id = cur.lastrowid
+
+            # hjemmehold
+            player_no = 1
+
+            cur.execute("""
+                SELECT PlayerID
+                FROM TournamentTeamPlayers
+                WHERE TournamentTeamID = %s
+                ORDER BY Position
+            """, (tm["HomeTeamID"],))
+
+            for p in cur.fetchall():
+                cur.execute("""
+                    INSERT INTO MatchPlayers
+                    (
+                        MatchID,
+                        PlayerID,
+                        PlayerNumber,
+                        Timestamp
+                    )
+                    VALUES
+                    (
+                        %s,
+                        %s,
+                        %s,
+                        NOW()
+                    )
+                """, (
+                    match_id,
+                    p["PlayerID"],
+                    player_no
+                ))
+                player_no += 1
+
+            # udehold
+            cur.execute("""
+                SELECT PlayerID
+                FROM TournamentTeamPlayers
+                WHERE TournamentTeamID = %s
+                ORDER BY Position
+            """, (tm["AwayTeamID"],))
+
+            for p in cur.fetchall():
+                cur.execute("""
+                    INSERT INTO MatchPlayers
+                    (
+                        MatchID,
+                        PlayerID,
+                        PlayerNumber,
+                        Timestamp
+                    )
+                    VALUES
+                    (
+                        %s,
+                        %s,
+                        %s,
+                        NOW()
+                    )
+                """, (
+                    match_id,
+                    p["PlayerID"],
+                    player_no
+                ))
+                player_no += 1
+
+            cur.execute("""
+                UPDATE TournamentMatches
+                SET MatchID = %s
+                WHERE ID = %s
+            """, (
+                match_id,
+                tm["ID"]
+            ))
+
+            conn.commit()
+
             return {
-                "match_id": None,
-                "status": None
+                "match_id": match_id,
+                "status": "Live",
+                "auto_created": True
             }
 
-        tournament_id = group["TournamentID"]
-        group_name = group["GroupName"]
-
-        # A -> 1, B -> 2 osv.
-        group_no = ord(group_name.upper()) - 64
-
         # ==========================================
-        # 3. Find næste kamp i gruppen
+        # ALMINDELIGE KAMPE
         # ==========================================
         cur.execute("""
             SELECT
                 ID,
-                HomeTeamID,
-                AwayTeamID
-            FROM TournamentMatches
-            WHERE TournamentID = %s
-            AND GroupNo = %s
-            AND MatchID IS NULL
-            ORDER BY Round, ID
-            LIMIT 1
-        """, (tournament_id, group_no))
-
-        tm = cur.fetchone()
-
-        if not tm:
-            return {
-                "match_id": None,
-                "status": "group_finished"
-            }
-
-        # ==========================================
-        # 4. Hent turneringens sport
-        # ==========================================
-        cur.execute("""
-            SELECT Sport
-            FROM Tournaments
-            WHERE ID = %s
-            LIMIT 1
-        """, (tournament_id,))
-
-        tournament = cur.fetchone()
-
-        if not tournament:
-            return {
-                "match_id": None,
-                "status": "tournament_missing"
-            }
-
-        match_type_id = tournament["Sport"]
-
-        # ==========================================
-        # 5. Opret MatchHeader
-        # ==========================================
-        cur.execute("""
-            INSERT INTO MatchHeader
-            (
-                MatchTypeID,
-                MatchGameModeID,
-                PublicToken,
-                TournamentID,
-                Status,
-                StartedAt,
-                Timestamp
-            )
-            VALUES
-            (
-                %s,
-                2,
-                %s,
-                %s,
+                Status
+            FROM MatchHeader
+            WHERE PublicToken = %s
+            AND TournamentID IS NULL
+            AND Status IN (
                 'Live',
-                NOW(),
-                NOW()
+                'FinishedPending',
+                'SystemPaused'
             )
-        """, (
-            match_type_id,
-            token,
-            tournament_id
-        ))
+            ORDER BY ID DESC
+            LIMIT 1
+        """, (token,))
 
-        match_id = cur.lastrowid
+        match = cur.fetchone()
 
-        # ==========================================
-        # 6. Hent spillere fra hjemmehold
-        # ==========================================
-        player_no = 1
-
-        cur.execute("""
-            SELECT PlayerID
-            FROM TournamentTeamPlayers
-            WHERE TournamentTeamID = %s
-            ORDER BY Position
-        """, (tm["HomeTeamID"],))
-
-        home_players = cur.fetchall()
-
-        for p in home_players:
-
-            cur.execute("""
-                INSERT INTO MatchPlayers
-                (
-                    MatchID,
-                    PlayerID,
-                    PlayerNumber,
-                    Timestamp
-                )
-                VALUES
-                (
-                    %s,
-                    %s,
-                    %s,
-                    NOW()
-                )
-            """, (
-                match_id,
-                p["PlayerID"],
-                player_no
-            ))
-
-            player_no += 1
-
-        # ==========================================
-        # 7. Hent spillere fra udehold
-        # ==========================================
-        cur.execute("""
-            SELECT PlayerID
-            FROM TournamentTeamPlayers
-            WHERE TournamentTeamID = %s
-            ORDER BY Position
-        """, (tm["AwayTeamID"],))
-
-        away_players = cur.fetchall()
-
-        for p in away_players:
-
-            cur.execute("""
-                INSERT INTO MatchPlayers
-                (
-                    MatchID,
-                    PlayerID,
-                    PlayerNumber,
-                    Timestamp
-                )
-                VALUES
-                (
-                    %s,
-                    %s,
-                    %s,
-                    NOW()
-                )
-            """, (
-                match_id,
-                p["PlayerID"],
-                player_no
-            ))
-
-            player_no += 1
-
-        # ==========================================
-        # 8. Gem koblingen
-        # ==========================================
-        cur.execute("""
-            UPDATE TournamentMatches
-            SET MatchID = %s
-            WHERE ID = %s
-        """, (
-            match_id,
-            tm["ID"]
-        ))
-
-        conn.commit()
+        if match:
+            return {
+                "match_id": match["ID"],
+                "status": match["Status"]
+            }
 
         return {
-            "match_id": match_id,
-            "status": "Live",
-            "auto_created": True
+            "match_id": None,
+            "status": None
         }
 
     except Exception as e:
@@ -890,6 +892,26 @@ def get_live_match(token: str):
 
     finally:
         conn.close()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
