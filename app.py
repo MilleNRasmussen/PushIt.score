@@ -1338,7 +1338,59 @@ async def webhook_end_game(request: Request):
                 WHERE ID = %s
             """, (match_id,))
 
+            
+            cur.execute("""
+                SELECT TournamentID
+                FROM MatchHeader
+                WHERE ID = %s
+            """, (match_id,))
+
+            row = cur.fetchone()
+
+            if row and row["TournamentID"]:
+
+                tournament_id = row["TournamentID"]
+
+                cur.execute("""
+                    SELECT COUNT(*) AS Remaining
+                    FROM TournamentMatches tm
+                    JOIN MatchHeader mh
+                        ON mh.ID = tm.MatchID
+                    WHERE tm.TournamentID = %s
+                    AND tm.Stage = 'group'
+                    AND (
+                         mh.ID IS NULL
+                         OR mh.Status <> 'Closed'
+                    )
+                """, (tournament_id,))
+
+                remaining = cur.fetchone()["Remaining"]
+
+                if remaining == 0:
+                    generate_placement_matches(cur, tournament_id)
+
             conn.commit()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            
 
             # 🔥 NEW: generate KPI cache
             calculate_kpi(match_id)
@@ -2345,3 +2397,161 @@ def get_full_view_v2(tournament_id: int):
         "groups": groups,
         "finals": []
     }
+
+
+
+def generate_placement_matches(cur, tournament_id):
+
+
+    # Undgå dobbelt-oprettelse
+    cur.execute("""
+        SELECT COUNT(*) AS Cnt
+        FROM TournamentMatches
+        WHERE TournamentID = %s
+        AND Stage = 'placement'
+    """, (tournament_id,))
+
+    if cur.fetchone()["Cnt"] > 0:
+        return
+    
+    groups = get_group_standings(cur, tournament_id)
+
+    if "A" not in groups or "B" not in groups:
+        return
+
+    groupA = groups["A"]
+    groupB = groups["B"]
+
+    labels = [
+        "Final",
+        "3rd Place",
+        "5th Place",
+        "7th Place",
+        "9th Place",
+        "11th Place"
+    ]
+
+    max_matches = min(len(groupA), len(groupB))
+
+    for i in range(max_matches):
+
+        cur.execute("""
+            INSERT INTO TournamentMatches (
+                TournamentID,
+                HomeTeamID,
+                AwayTeamID,
+                Round,
+                Stage,
+                Status,
+                CreatedAt
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                %s,
+                'placement',
+                'pending',
+                NOW()
+            )
+        """, (
+            tournament_id,
+            groupA[i]["TeamID"],
+            groupB[i]["TeamID"],
+            i + 1
+        ))
+
+def get_group_standings(cur, tournament_id):
+
+    cur.execute("""
+        SELECT
+            ID as TeamID,
+            Name,
+            GroupName
+        FROM TournamentTeams
+        WHERE TournamentID = %s
+    """, (tournament_id,))
+
+    teams = cur.fetchall()
+
+    stats = {}
+
+    for t in teams:
+        stats[t["TeamID"]] = {
+            "TeamID": t["TeamID"],
+            "Name": t["Name"],
+            "GroupName": t["GroupName"],
+            "Played": 0,
+            "Wins": 0,
+            "Draws": 0,
+            "GoalsScored": 0,
+            "GoalsAgainst": 0,
+            "Points": 0
+        }
+
+    cur.execute("""
+        SELECT
+            tm.HomeTeamID,
+            tm.AwayTeamID,
+            msa.HomeTeamPoint,
+            msa.AwayTeamPoint
+        FROM TournamentMatches tm
+        JOIN MatchHeader mh
+            ON mh.ID = tm.MatchID
+        JOIN MatchesScoreActual msa
+            ON msa.MatchHeaderID = mh.ID
+        WHERE tm.TournamentID = %s
+        AND tm.Stage = 'group'
+        AND mh.Status = 'Closed'
+    """, (tournament_id,))
+
+    matches = cur.fetchall()
+
+    for m in matches:
+
+        home = stats[m["HomeTeamID"]]
+        away = stats[m["AwayTeamID"]]
+
+        hs = m["HomeTeamPoint"] or 0
+        aw = m["AwayTeamPoint"] or 0
+
+        home["Played"] += 1
+        away["Played"] += 1
+
+        home["GoalsScored"] += hs
+        home["GoalsAgainst"] += aw
+
+        away["GoalsScored"] += aw
+        away["GoalsAgainst"] += hs
+
+        if hs > aw:
+            home["Points"] += 2
+        elif aw > hs:
+            away["Points"] += 2
+        else:
+            home["Points"] += 1
+            away["Points"] += 1
+
+    groups = {}
+
+    for team in stats.values():
+
+        group = team["GroupName"]
+
+        if group not in groups:
+            groups[group] = []
+
+        groups[group].append(team)
+
+    for group in groups:
+
+        groups[group].sort(
+            key=lambda t: (
+                t["Points"],
+                t["GoalsScored"] - t["GoalsAgainst"],
+                t["GoalsScored"]
+            ),
+            reverse=True
+        )
+
+    return groups
