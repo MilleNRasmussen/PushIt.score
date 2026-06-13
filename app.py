@@ -2428,6 +2428,8 @@ def generate_placement_matches(cur, tournament_id):
 
         # Finalen får højeste round
         round_no = max_matches - i
+
+        group_no = 1 if i % 2 == 0 else 2
         
         cur.execute("""
             INSERT INTO TournamentMatches (
@@ -2435,11 +2437,13 @@ def generate_placement_matches(cur, tournament_id):
                 HomeTeamID,
                 AwayTeamID,
                 Round,
+                GroupNo,
                 Stage,
                 Status,
                 CreatedAt
             )
             VALUES (
+                %s,
                 %s,
                 %s,
                 %s,
@@ -2452,7 +2456,8 @@ def generate_placement_matches(cur, tournament_id):
             tournament_id,
             groupA[i]["TeamID"],
             groupB[i]["TeamID"],
-            round_no
+            round_no,
+            group_no
         ))
 
 def get_group_standings(cur, tournament_id):
