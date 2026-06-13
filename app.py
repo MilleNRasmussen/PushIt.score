@@ -2422,19 +2422,13 @@ def generate_placement_matches(cur, tournament_id):
     groupA = groups["A"]
     groupB = groups["B"]
 
-    labels = [
-        "Final",
-        "3rd Place",
-        "5th Place",
-        "7th Place",
-        "9th Place",
-        "11th Place"
-    ]
-
     max_matches = min(len(groupA), len(groupB))
 
     for i in range(max_matches):
 
+        # Finalen får højeste round
+        round_no = max_matches - i
+        
         cur.execute("""
             INSERT INTO TournamentMatches (
                 TournamentID,
@@ -2458,7 +2452,7 @@ def generate_placement_matches(cur, tournament_id):
             tournament_id,
             groupA[i]["TeamID"],
             groupB[i]["TeamID"],
-            i + 1
+            round_no
         ))
 
 def get_group_standings(cur, tournament_id):
