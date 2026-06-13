@@ -2555,3 +2555,24 @@ def get_group_standings(cur, tournament_id):
         )
 
     return groups
+
+
+@app.post("/tournaments/{tournament_id}/generate-placement")
+def generate_placement(tournament_id: int):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        generate_placement_matches(cur, tournament_id)
+        conn.commit()
+
+        return {
+            "success": True
+        }
+
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
