@@ -2209,6 +2209,8 @@ def get_tournament_plan(tournament_id: int):
             tm.ID,
             tm.GroupNo,
             tm.MatchID,
+            tm.Stage,
+            tm.Round,
             ht.Name AS HomeTeam,
             at.Name AS AwayTeam,
             msa.HomeTeamPoint AS HomeScore,
