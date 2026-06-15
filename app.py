@@ -2586,7 +2586,7 @@ def generate_placement(tournament_id: int):
 def get_match_timeline(match_id: int):
 
     conn = get_conn()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor()
 
     # Match info
     cur.execute("""
