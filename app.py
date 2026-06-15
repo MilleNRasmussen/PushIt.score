@@ -2677,8 +2677,15 @@ def get_match_timeline(match_id: int):
 @app.get("/matches/{match_id}/timelineTest")
 def get_match_timeline(match_id: int):
 
-    conn = get_connection()
+    try:
+        conn = get_connection()
 
-    return {
-        "success": True
-    }
+        return {
+            "success": True
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
