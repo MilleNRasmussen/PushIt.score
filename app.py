@@ -2577,3 +2577,93 @@ def generate_placement(tournament_id: int):
 
     finally:
         conn.close()
+
+
+
+@app.get("/matches/{match_id}/timeline")
+def get_match_timeline(match_id: int):
+
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+
+    # Match info
+    cur.execute("""
+        SELECT
+            tm.ID,
+            ht.Name AS HomeTeam,
+            at.Name AS AwayTeam,
+            tm.HomeScore,
+            tm.AwayScore
+        FROM TournamentMatches tm
+        LEFT JOIN Teams ht
+            ON ht.TeamID = tm.HomeTeamID
+        LEFT JOIN Teams at
+            ON at.TeamID = tm.AwayTeamID
+        WHERE tm.ID = %s
+    """, (match_id,))
+
+    match = cur.fetchone()
+
+    if not match:
+        return {
+            "success": False,
+            "message": "Match not found"
+        }
+
+    # Goals
+    cur.execute("""
+        SELECT
+            ID,
+            HomeTeamPoint,
+            AwayTeamPoint,
+            CreatedAt
+        FROM MatchDetailPoint
+        WHERE MatchHeaderID = %s
+        ORDER BY CreatedAt
+    """, (match_id,))
+
+    points = cur.fetchall()
+
+    timeline = []
+    first_time = None
+
+    previous_home = 0
+    previous_away = 0
+
+    for goal_number, p in enumerate(points, start=1):
+
+        if first_time is None:
+            first_time = p["CreatedAt"]
+
+        seconds = int(
+            (p["CreatedAt"] - first_time).total_seconds()
+        )
+
+        scoring_team = "home"
+
+        if p["AwayTeamPoint"] > previous_away:
+            scoring_team = "away"
+
+        timeline.append({
+            "goalNumber": goal_number,
+            "matchDetailPointId": p["ID"],
+            "scoreHome": p["HomeTeamPoint"],
+            "scoreAway": p["AwayTeamPoint"],
+            "scoringTeam": scoring_team,
+            "timestamp": p["CreatedAt"].isoformat(),
+            "seconds": seconds
+        })
+
+        previous_home = p["HomeTeamPoint"]
+        previous_away = p["AwayTeamPoint"]
+
+    return {
+        "success": True,
+        "matchId": match["ID"],
+        "homeTeam": match["HomeTeam"],
+        "awayTeam": match["AwayTeam"],
+        "homeScore": match["HomeScore"],
+        "awayScore": match["AwayScore"],
+        "goalCount": len(timeline),
+        "timeline": timeline
+    }
