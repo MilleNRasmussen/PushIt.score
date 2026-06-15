@@ -2603,6 +2603,7 @@ def get_match_timeline(match_id: int):
             ON A.MatchHeaderID = tm.MatchID
         WHERE tm.MatchID = %s
     """, (match_id,))
+    
 
     match = cur.fetchone()
 
