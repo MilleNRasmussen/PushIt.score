@@ -2596,9 +2596,9 @@ def get_match_timeline(match_id: int):
             A.AwayTeamPoint AS AwayScore
         FROM TournamentMatches tm
         LEFT JOIN TournamentTeams ht
-            ON ht.TeamID = tm.HomeTeamID
+            ON ht.ID = tm.HomeTeamID
         LEFT JOIN TournamentTeams at
-            ON at.TeamID = tm.AwayTeamID
+            ON at.ID = tm.AwayTeamID
         LEFT JOIN MatchDetailPoint A
             ON A.MatchHeaderID = tm.MatchID
         WHERE tm.MatchID = %s
