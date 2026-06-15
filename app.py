@@ -2585,7 +2585,7 @@ def generate_placement(tournament_id: int):
 @app.get("/matches/{match_id}/timeline")
 def get_match_timeline(match_id: int):
 
-    conn = get_connection()
+    conn = get_conn()
     cur = conn.cursor(dictionary=True)
 
     # Match info
