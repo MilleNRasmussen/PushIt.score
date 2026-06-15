@@ -2678,7 +2678,7 @@ def get_match_timeline(match_id: int):
 def get_match_timeline(match_id: int):
 
     try:
-         conn = get_conn()
+        conn = get_conn()
 
         return {
             "success": True
