@@ -2618,7 +2618,7 @@ def get_match_timeline(match_id: int):
             ID,
             HomeTeamPoint,
             AwayTeamPoint,
-            Timestamp AS CreatedAt
+            Timestamp AS CreatedAt 
         FROM MatchDetailPoint
         WHERE MatchHeaderID = %s
         ORDER BY Timestamp
