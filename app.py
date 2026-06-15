@@ -2672,3 +2672,24 @@ def get_match_timeline(match_id: int):
         "goalCount": len(timeline),
         "timeline": timeline
     }
+
+
+@app.get("/matches/{match_id}/timelineTest")
+def get_match_timeline(match_id: int):
+
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+
+    cur.execute("""
+        SELECT *
+        FROM MatchDetailPoint
+        WHERE MatchHeaderID = %s
+        LIMIT 1
+    """, (match_id,))
+
+    row = cur.fetchone()
+
+    return {
+        "success": True,
+        "row": row
+    }
