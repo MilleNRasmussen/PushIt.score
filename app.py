@@ -2592,14 +2592,16 @@ def get_match_timeline(match_id: int):
             tm.ID,
             ht.Name AS HomeTeam,
             at.Name AS AwayTeam,
-            tm.HomeScore,
-            tm.AwayScore
+            A.HomeTeamPoint AS HomeScore,
+            A.AwayTeamPoint AS AwayScore
         FROM TournamentMatches tm
-        LEFT JOIN Teams ht
+        LEFT JOIN TournamentTeams ht
             ON ht.TeamID = tm.HomeTeamID
-        LEFT JOIN Teams at
+        LEFT JOIN TournamentTeams at
             ON at.TeamID = tm.AwayTeamID
-        WHERE tm.ID = %s
+        LEFT JOIN MatchDetailPoint A
+            ON A.MatchHeaderID = tm.MatchID
+        WHERE tm.MatchID = %s
     """, (match_id,))
 
     match = cur.fetchone()
@@ -2616,10 +2618,10 @@ def get_match_timeline(match_id: int):
             ID,
             HomeTeamPoint,
             AwayTeamPoint,
-            CreatedAt
+            Timestamp
         FROM MatchDetailPoint
         WHERE MatchHeaderID = %s
-        ORDER BY CreatedAt
+        ORDER BY Timestamp
     """, (match_id,))
 
     points = cur.fetchall()
