@@ -2674,18 +2674,3 @@ def get_match_timeline(match_id: int):
     }
 
 
-@app.get("/matches/{match_id}/timelineTest")
-def get_match_timeline(match_id: int):
-
-    try:
-        conn = get_conn()
-
-        return {
-            "success": True
-        }
-
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
