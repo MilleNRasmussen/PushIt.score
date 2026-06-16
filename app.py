@@ -2604,6 +2604,8 @@ def get_match_timeline(match_id: int):
         LEFT JOIN MatchDetailPoint A
             ON A.MatchHeaderID = tm.MatchID
         WHERE tm.MatchID = %s
+        AND Deleted = 0
+        
     """, (match_id,))
     
 
@@ -2621,9 +2623,10 @@ def get_match_timeline(match_id: int):
             ID,
             HomeTeamPoint,
             AwayTeamPoint,
-            Timestamp AS CreatedAt 
+            Timestamp AS CreatedAt
         FROM MatchDetailPoint
         WHERE MatchHeaderID = %s
+        AND Deleted = 0
         ORDER BY Timestamp
     """, (match_id,))
 
