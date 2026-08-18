@@ -150,36 +150,7 @@ def broadcast_match_end(token):
         })
       
 
-# =====================================================
-# AUTO PAUSE JOB
-# =====================================================
 
-def pause_inactive_matches():
-
-    conn = get_conn()
-    cur = conn.cursor()
-
-    try:
-
-        cur.execute("""
-           UPDATE MatchHeader mh
-           LEFT JOIN (
-                SELECT MatchHeaderID, MAX(Timestamp) AS LastPoint
-                FROM MatchDetailPoint
-                WHERE Deleted = 0
-                GROUP BY MatchHeaderID
-            ) md ON md.MatchHeaderID = mh.ID
-            SET mh.Status='SystemPaused',
-                PausedAt = NOW()
-            WHERE mh.Status='Live'
-            AND mh.TournamentID IS NULL
-            AND COALESCE(md.LastPoint, mh.StartedAt) < NOW() - INTERVAL 4 MINUTE;
-        """)
-
-        conn.commit()
-
-    finally:
-        conn.close()
 
 # =====================================================
 # CLOSE FINISHED MATCHES
@@ -191,12 +162,31 @@ def close_finished_matches():
     cur = conn.cursor()
     try:
         cur.execute("""
-            UPDATE MatchHeader
-            SET Status = 'Closed',
-                FinishedAt = NOW()
-            WHERE Status = 'FinishedPending'
+            UPDATE MatchHeader mh
+            LEFT JOIN (
+                SELECT MatchHeaderID, MAX(Timestamp) AS LastPoint
+                FROM MatchDetailPoint
+                WHERE Deleted = 0
+                GROUP BY MatchHeaderID
+            ) md ON md.MatchHeaderID = mh.ID
+
+            SET mh.Status = 'Closed'
+
+            WHERE mh.Status = 'Live'
+            AND (
+                (mh.PausedAt IS NULL
+                 AND COALESCE(md.LastPoint, mh.StartedAt) < NOW() - INTERVAL 2 MINUTE)
+
+            OR
+
+            (mh.PausedAt IS NOT NULL
+             AND mh.PausedAt < NOW() - INTERVAL 15 MINUTE)
+            );
+
+
+
+
             
-            AND Timestamp < NOW() - INTERVAL 10 SECOND;
         """)
         conn.commit()
     finally:
@@ -957,11 +947,6 @@ async def delete_last_point(request: Request):
 
 scheduler = BackgroundScheduler()
 
-scheduler.add_job(
-    pause_inactive_matches,
-    "interval",
-    minutes=1
-)
 
 scheduler.add_job(
     close_finished_matches,
