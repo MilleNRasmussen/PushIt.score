@@ -2799,3 +2799,153 @@ def delete_player_group(group_id: int):
 
     finally:
         conn.close()
+
+
+
+class PlayerGroupMember(BaseModel):
+    player_id: int
+    group_id: int
+
+
+@app.get("/users/{user_id}/groups")
+def get_user_groups(user_id: int):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            SELECT
+                pg.ID,
+                pg.Name,
+                pg.ClubID
+            FROM PlayerGroupMembers pgm
+            JOIN PlayerGroups pg
+                ON pg.ID = pgm.GroupID
+            WHERE pgm.PlayerID = %s
+            ORDER BY pg.Name
+        """, (user_id,))
+
+        return cur.fetchall()
+
+    except Exception as e:
+        return {
+            "error": str(e)
+        }
+
+    finally:
+        conn.close()
+
+
+
+@app.post("/users/{user_id}/groups/{group_id}")
+def add_user_to_group(user_id: int, group_id: int):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            INSERT IGNORE INTO PlayerGroupMembers
+            (
+                PlayerID,
+                GroupID
+            )
+            VALUES
+            (
+                %s,
+                %s
+            )
+        """, (
+            user_id,
+            group_id
+        ))
+
+        conn.commit()
+
+        return {
+            "success": True
+        }
+
+    except Exception as e:
+        conn.rollback()
+        return {
+            "error": str(e)
+        }
+
+    finally:
+        conn.close()
+
+
+
+@app.delete("/users/{user_id}/groups/{group_id}")
+def remove_user_from_group(user_id: int, group_id: int):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            DELETE
+            FROM PlayerGroupMembers
+            WHERE PlayerID = %s
+            AND GroupID = %s
+        """, (
+            user_id,
+            group_id
+        ))
+
+        conn.commit()
+
+        return {
+            "success": True
+        }
+
+    except Exception as e:
+        conn.rollback()
+        return {
+            "error": str(e)
+        }
+
+    finally:
+        conn.close()
+
+
+
+@app.get("/users")
+def read_users(group_id: int | None = None):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        if group_id is None:
+            cur.execute("""
+                SELECT
+                    ID as id,
+                    Navn as name,
+                    CONCAT('/avatars/', ID, '.png') as avatar,
+                    IF(ButtonID IS NULL, 0, 1) as has_flic
+                FROM Users
+                ORDER BY Navn
+            """)
+        else:
+            cur.execute("""
+                SELECT DISTINCT
+                    u.ID as id,
+                    u.Navn as name,
+                    CONCAT('/avatars/', u.ID, '.png') as avatar,
+                    IF(u.ButtonID IS NULL, 0, 1) as has_flic
+                FROM Users u
+                JOIN PlayerGroupMembers pgm
+                    ON pgm.PlayerID = u.ID
+                WHERE pgm.GroupID = %s
+                ORDER BY u.Navn
+            """, (group_id,))
+
+        rows = cur.fetchall()
+        return rows
+
+    except Exception as e:
+        return {
+            "error": str(e)
+        }
+
+    finally:
+        conn.close()
