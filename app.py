@@ -2662,3 +2662,140 @@ def get_match_timeline(match_id: int):
     }
 
 
+
+
+# ---------- User groups ----------
+
+@app.get("/player-groups")
+def get_player_groups(club_id: int | None = None):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    if club_id is not None:
+        cur.execute("""
+            SELECT ID, Name, ClubID
+            FROM PlayerGroups
+            WHERE ClubID = %s
+            OR ClubID IS NULL
+            ORDER BY Name
+        """, (club_id,))
+    else:
+        cur.execute("""
+            SELECT ID, Name, ClubID
+            FROM PlayerGroups
+            ORDER BY Name
+        """)
+
+    rows = cur.fetchall()
+    conn.close()
+    return rows
+
+class PlayerGroupCreate(BaseModel):
+    name: str
+    club_id: int | None = None
+
+
+
+@app.post("/player-groups")
+def create_player_group(data: PlayerGroupCreate):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            INSERT INTO PlayerGroups
+            (
+                Name,
+                ClubID
+            )
+            VALUES
+            (
+                %s,
+                %s
+            )
+        """, (
+            data.name,
+            data.club_id
+        ))
+
+        conn.commit()
+
+        return {
+            "id": cur.lastrowid,
+            "success": True
+        }
+
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
+
+
+class PlayerGroupUpdate(BaseModel):
+    name: str
+
+
+@app.put("/player-groups/{group_id}")
+def update_player_group(group_id: int, data: PlayerGroupUpdate):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            UPDATE PlayerGroups
+            SET Name = %s
+            WHERE ID = %s
+        """, (
+            data.name,
+            group_id
+        ))
+        if cur.rowcount == 0:
+            return {"error": "Group not found"}
+        conn.commit()
+
+        return {
+            "success": True
+        }
+
+    except Exception as e:
+        conn.rollback()
+        return {
+            "error": str(e)
+        }
+
+    finally:
+        conn.close()
+
+
+
+@app.delete("/player-groups/{group_id}")
+def delete_player_group(group_id: int):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            DELETE
+            FROM PlayerGroups
+            WHERE ID = %s
+        """, (group_id,))
+
+        if cur.rowcount == 0:
+            return {"error": "Group not found"}
+        
+        conn.commit()
+
+        return {
+            "success": True
+        }
+
+    except Exception as e:
+        conn.rollback()
+        return {
+            "error": str(e)
+        }
+
+    finally:
+        conn.close()
