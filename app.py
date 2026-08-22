@@ -163,9 +163,12 @@ def close_finished_matches():
     cur = conn.cursor()
     try:
         cur.execute("""
+                        
             UPDATE MatchHeader mh
             LEFT JOIN (
-                SELECT MatchHeaderID, MAX(Timestamp) AS LastPoint
+                SELECT
+                MatchHeaderID,
+                MAX(Timestamp) AS LastPoint
                 FROM MatchDetailPoint
                 WHERE Deleted = 0
                 GROUP BY MatchHeaderID
@@ -173,21 +176,14 @@ def close_finished_matches():
 
             SET mh.Status = 'Closed'
 
-            WHERE mh.Status = 'Live'
-            AND (
-                (mh.PausedAt IS NULL
-                 AND COALESCE(md.LastPoint, mh.StartedAt) < NOW() - INTERVAL 2 MINUTE)
+            WHERE mh.Status IN ( 'Live','Paused','SystemPaused','ManualPaused')
+            AND COALESCE(
+                  mh.PausedAt,
+                  md.LastPoint,
+                  mh.StartedAt
+                ) < NOW() - INTERVAL 2 MINUTE;
 
-            OR
-
-            (mh.PausedAt IS NOT NULL
-             AND mh.PausedAt < NOW() - INTERVAL 15 MINUTE)
-            );
-
-
-
-
-            
+           
         """)
         conn.commit()
     finally:
