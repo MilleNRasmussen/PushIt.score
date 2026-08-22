@@ -158,6 +158,7 @@ def broadcast_match_end(token):
 # =====================================================
 
 def close_finished_matches():
+    print("🔥 Scheduler tick", flush=True)
     conn = get_conn()
     cur = conn.cursor()
     try:
@@ -956,7 +957,7 @@ scheduler.add_job(
 
 scheduler.start()
 
-
+print("✅ Scheduler started", flush=True)
 # =====================================================
 # WEBSOCKET
 # =====================================================
