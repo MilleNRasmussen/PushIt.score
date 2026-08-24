@@ -2935,6 +2935,19 @@ def read_users(group_id: int | None = None):
                 WHERE pgm.GroupID = %s
                 ORDER BY u.Navn
             """, (group_id,))
+        elif group_id == -1:
+           cur.execute("""
+               SELECT
+                   u.ID as id,
+                   u.Navn as name,
+                   CONCAT('/avatars/', u.ID, '.png') as avatar,
+                   IF(u.ButtonID IS NULL, 0, 1) as has_flic
+                FROM Users u
+                LEFT JOIN PlayerGroupMembers pgm
+                    ON pgm.PlayerID = u.ID
+                WHERE pgm.PlayerID IS NULL
+                ORDER BY u.Navn
+            """)
 
         rows = cur.fetchall()
         return rows
