@@ -194,25 +194,6 @@ def close_finished_matches():
 # USERS
 # =====================================================
 
-@app.get("/users")
-@app.get("/Users/")
-def read_users():
-    conn = get_conn()
-    cur = conn.cursor()
-
-    cur.execute("""
-        SELECT
-            ID as id,
-            Navn as name,
-            CONCAT('/avatars/', ID, '.png') as avatar,
-            IF(ButtonID IS NULL, 0, 1) as has_flic
-        FROM Users
-    """)
-
-    users = cur.fetchall()
-    conn.close()
-
-    return users
 
 
 
