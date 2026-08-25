@@ -2946,3 +2946,22 @@ def read_users(group_id: int | None = None):
 
     finally:
         conn.close()
+
+
+@app.get("/club")
+def get_club():
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT ClubName
+        FROM CustomerClub
+        LIMIT 1
+    """)
+
+    row = cur.fetchone()
+    conn.close()
+
+    return {
+        "clubName": row["ClubName"] if row else ""
+    }
