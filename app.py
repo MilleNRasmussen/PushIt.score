@@ -2948,16 +2948,17 @@ def read_users(group_id: int | None = None):
         conn.close()
 
 
-@app.get("/club")
-def get_club():
+@app.get("/club/{token}")
+def get_club(token: str):
     conn = get_conn()
     cur = conn.cursor()
 
     cur.execute("""
         SELECT ClubName
         FROM CustomerClub
+        WHERE PublicToken = %s
         LIMIT 1
-    """)
+    """, (token,))
 
     row = cur.fetchone()
     conn.close()
