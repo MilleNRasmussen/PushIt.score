@@ -483,66 +483,6 @@ def read_match_livescore(match_id: int):
         "setDefault": set_default
         
     }
-
-
-
-# =====================================================
-# HELPER
-# =====================================================
-
-def check_button(cur, button_id):
-
-    # Er knappen registreret på en spiller?
-    cur.execute("""
-        SELECT Navn
-        FROM Users
-        WHERE ButtonID = %s
-        LIMIT 1
-    """, (button_id,))
-
-    user = cur.fetchone()
-
-    if user:
-        return {
-            "type": "player",
-            "name": user["Navn"]
-        }
-
-    # Er knappen registreret som Corporate?
-    cur.execute("""
-        SELECT Description, PublicToken
-        FROM CorporateButtons
-        WHERE ButtonID = %s
-          AND Active = 1
-        LIMIT 1
-    """, (button_id,))
-
-    corporate = cur.fetchone()
-
-    if corporate:
-        return {
-            "type": "corporate",
-            "description": corporate["Description"],
-            "public_token": corporate["PublicToken"]
-        }
-
-    return {
-        "type": "unknown"
-    }
-
-# =====================================================
-# FLIC BUTTONS
-# =====================================================
-
-
-
-
-
-
-
-
-
-
 # =====================================================
 # FLIC BUTTONS
 # =====================================================
@@ -569,27 +509,19 @@ async def flic_webhook_home(request: Request):
         if not button_id:
             return {"error": "No button id"}
 
+        cur.execute("""
+            SELECT Navn
+            FROM Users
+            WHERE ButtonID = %s
+        """, (button_id,))
 
+        user = cur.fetchone()
 
-button = check_button(cur, button_id)
+        if not user:
+            broadcast_flic(button_id)
+            return {"status": "pairing"}
 
-if button["type"] == "unknown":
-    broadcast_flic(button_id)
-    return {"status": "pairing"}
-
-if button["type"] == "corporate":
-    broadcast_corporate(button_id, button["description"])
-    return {"status": "corporate"}
-
-# Player
-broadcast_known(button_id, button["name"])
-
-
-
-
-
-
-        
+        broadcast_known(button_id, user["Navn"])
 
         cur.callproc(
             "SP_InsertIntoMatchDetailPadel_Home",
