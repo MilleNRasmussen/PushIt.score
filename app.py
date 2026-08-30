@@ -555,19 +555,21 @@ async def flic_webhook_home(request: Request):
         if not button_id:
             return {"error": "No button id"}
 
-        cur.execute("""
-            SELECT Navn
-            FROM Users
-            WHERE ButtonID = %s
-        """, (button_id,))
+        button = check_button(cur, button_id)
 
-        user = cur.fetchone()
-
-        if not user:
+        if button["type"] == "unknown":
             broadcast_flic(button_id)
             return {"status": "pairing"}
 
-        broadcast_known(button_id, user["Navn"])
+        if button["type"] == "player":
+            broadcast_known(button_id, button["name"])
+
+        if button["type"] == "corporate":
+            broadcast_corporate(
+                button_id,
+                button["description"]
+            )
+            return {"status": "corporate"}
 
         cur.callproc(
             "SP_InsertIntoMatchDetailPadel_Home",
