@@ -483,6 +483,52 @@ def read_match_livescore(match_id: int):
         "setDefault": set_default
         
     }
+
+
+
+# =====================================================
+# HELPER
+# =====================================================
+
+def check_button(cur, button_id):
+    # Spiller?
+    cur.execute("""
+        SELECT Navn
+        FROM Users
+        WHERE ButtonID=%s
+        LIMIT 1
+    """, (button_id,))
+    row = cur.fetchone()
+    if row:
+        return {
+            "type": "player",
+            "name": row["Navn"]
+        }
+
+    # Corporate?
+    cur.execute("""
+        SELECT Description, PublicToken
+        FROM CorporateButtons
+        WHERE ButtonID=%s
+        LIMIT 1
+    """, (button_id,))
+    row = cur.fetchone()
+    if row:
+        return {
+            "type": "corporate",
+            "description": row["Description"],
+            "public_token": row["PublicToken"]
+        }
+
+    return {"type": "unknown"}
+
+
+
+
+
+
+
+
 # =====================================================
 # FLIC BUTTONS
 # =====================================================
