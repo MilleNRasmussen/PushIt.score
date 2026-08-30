@@ -136,6 +136,16 @@ def broadcast_known(button_id, name):
             "name": name
         })
 
+def broadcast_corporate(button_id, description):
+    print("CORPORATE EVENT:", button_id, description, flush=True)
+
+    for queue in clients:
+        queue.put_nowait({
+            "type": "corporate",
+            "flic_id": button_id,
+            "description": description
+        })
+
 # =====================================================
 # MATCH ENDED EVENT (tilføj denne hvis ikke allerede)
 # =====================================================
