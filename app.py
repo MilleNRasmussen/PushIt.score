@@ -2966,3 +2966,177 @@ def get_club(token: str):
     return {
         "clubName": row["ClubName"] if row else ""
     }
+
+
+
+
+class CorporateButtonCreate(BaseModel):
+    button_id: str
+    public_token: str
+    description: str
+
+
+class CorporateButtonCheck(BaseModel):
+    button_id: str
+
+
+@app.get("/corporate-buttons")
+def get_corporate_buttons():
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+
+        cur.execute("""
+            SELECT
+                ID,
+                ButtonID,
+                PublicToken,
+                Description,
+                Active,
+                CreatedDate
+            FROM CorporateButtons
+            ORDER BY Description
+        """)
+
+        return cur.fetchall()
+
+    finally:
+        conn.close()
+
+
+
+@app.post("/corporate-buttons")
+def create_corporate_button(data: CorporateButtonCreate):
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+
+        cur.execute("""
+            INSERT INTO CorporateButtons
+            (
+                ButtonID,
+                PublicToken,
+                Description
+            )
+            VALUES
+            (
+                %s,
+                %s,
+                %s
+            )
+        """,
+        (
+            data.button_id,
+            data.public_token,
+            data.description
+        ))
+
+        conn.commit()
+
+        return {
+            "success": True,
+            "id": cur.lastrowid
+        }
+
+    except Exception as e:
+
+        conn.rollback()
+
+        return {
+            "error": str(e)
+        }
+
+    finally:
+
+        conn.close()
+
+
+
+@app.delete("/corporate-buttons/{button_id}")
+def delete_corporate_button(button_id:int):
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+
+        cur.execute("""
+            DELETE
+            FROM CorporateButtons
+            WHERE ID=%s
+        """,(button_id,))
+
+        conn.commit()
+
+        return {
+            "success":True
+        }
+
+    except Exception as e:
+
+        conn.rollback()
+
+        return {
+            "error":str(e)
+        }
+
+    finally:
+
+        conn.close()
+
+
+
+
+@app.post("/corporate-buttons/check")
+def check_corporate_button(data: CorporateButtonCheck):
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+
+        # Findes den på en spiller?
+        cur.execute("""
+            SELECT Navn
+            FROM Users
+            WHERE ButtonID=%s
+            LIMIT 1
+        """,(data.button_id,))
+
+        user = cur.fetchone()
+
+        if user:
+
+            return {
+                "status":"player",
+                "name":user["Navn"]
+            }
+
+        # Findes den som corporate?
+
+        cur.execute("""
+            SELECT ID
+            FROM CorporateButtons
+            WHERE ButtonID=%s
+            LIMIT 1
+        """,(data.button_id,))
+
+        corp = cur.fetchone()
+
+        if corp:
+
+            return {
+                "status":"corporate"
+            }
+
+        return {
+            "status":"free"
+        }
+
+    finally:
+
+        conn.close()
