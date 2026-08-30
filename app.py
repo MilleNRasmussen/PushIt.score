@@ -2056,7 +2056,8 @@ def get_tokens():
     try:
         cur.execute("""
             SELECT PublicToken,
-                   DefaultMatchTypeID
+                   DefaultMatchTypeID,
+                   ClubName
             FROM CustomerClub
             WHERE IsActive = 1
         """)
