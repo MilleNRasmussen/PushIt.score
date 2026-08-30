@@ -1209,6 +1209,25 @@ async def webhook_point(request: Request):
                 "status": "known_no_match"
             }
 
+        cur.execute("""
+            SELECT Description
+            FROM CorporateButtons
+            WHERE ButtonID = %s
+            LIMIT 1
+        """, (button_id,))
+
+        corp = cur.fetchone()
+        print("CORPORATE:", corp, flush=True)
+
+        if corp:
+            broadcast_corporate(
+                button_id,
+                corp["Description"]
+            )
+            return {
+                "status": "corporate"
+            }
+
         # =====================================
         # 3. UKENDT KNAP -> PAIRING
         # =====================================
