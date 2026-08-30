@@ -556,15 +556,19 @@ async def flic_webhook_home(request: Request):
             return {"error": "No button id"}
 
         button = check_button(cur, button_id)
+        print("CHECK:", button, flush=True)
 
         if button["type"] == "unknown":
+            print("CASE: UNKNOWN", flush=True)
             broadcast_flic(button_id)
             return {"status": "pairing"}
 
         if button["type"] == "player":
+            print("CASE: PLAYER", flush=True)
             broadcast_known(button_id, button["name"])
 
         if button["type"] == "corporate":
+            print("CASE: CORPORATE", flush=True)
             broadcast_corporate(
                 button_id,
                 button["description"]
