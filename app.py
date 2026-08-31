@@ -3083,7 +3083,7 @@ def get_corporate_buttons():
                 cb.CreatedDate,
                 c.ClubName
             FROM CorporateButtons cb
-            LEFT JOIN Clubs c
+            LEFT JOIN CustomerClub c
             ON cb.PublicToken = c.PublicToken
             ORDER BY Description
         """)
