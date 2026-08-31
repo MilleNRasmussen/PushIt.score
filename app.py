@@ -3075,13 +3075,16 @@ def get_corporate_buttons():
 
         cur.execute("""
             SELECT
-                ID,
-                ButtonID,
-                PublicToken,
-                Description,
-                Active,
-                CreatedDate
-            FROM CorporateButtons
+                cb.ID,
+                cb.ButtonID,
+                cb.PublicToken,
+                cb.Description,
+                cb.Active,
+                cb.CreatedDate,
+                c.ClubName
+            FROM CorporateButtons cb
+            LEFT JOIN Clubs c
+            ON cb.PublicToken = c.PublicToken
             ORDER BY Description
         """)
 
