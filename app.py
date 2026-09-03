@@ -1164,6 +1164,21 @@ async def webhook_point(request: Request):
 
         button_id = request.headers.get("button-serial-number")
 
+
+        button_name = request.headers.get("button-name")
+
+        for session_id, session in test_sessions.items():
+            if time.time() - session["started"] < 300:  # 5 min
+
+                session["button"] = button_id
+                session["button_name"] = button_name
+                session["push"] = True
+
+                return {
+                    "status": "test",
+                    "session_id": session_id
+                }
+
         if not button_id:
             return {"error": "No button id"}
 
@@ -3239,14 +3254,34 @@ def check_corporate_button(data: CorporateButtonCheck):
 async def webhook_test(action: str, request: Request):
     print(f"\n=== FLIC TEST ({action}) ===")
 
+    button_id = request.headers.get("button-serial-number")
+    button_name = request.headers.get("button-name")
+
     print("\nHeaders:")
     for key, value in request.headers.items():
         print(f"{key}: {value}")
 
     body = await request.body()
-
     print("\nBody:")
     print(body.decode())
+
+    # Opdater aktiv testsession
+    for session in test_sessions.values():
+        if time.time() - session["started"] < 300:
+
+            session["button"] = button_id
+            session["button_name"] = button_name
+
+            if action == "push":
+                session["push"] = True
+
+            elif action == "double":
+                session["double_push"] = True
+
+            elif action == "hold":
+                session["hold"] = True
+
+            break
 
     print("============================\n")
 
@@ -3254,31 +3289,3 @@ async def webhook_test(action: str, request: Request):
         "success": True,
         "action": action,
     }
-
-
-test_sessions = {}
-
-@app.post("/api/flic/test/start")
-def start_flic_test():
-    import uuid
-
-    session_id = str(uuid.uuid4())
-
-    test_sessions[session_id] = {
-        "started": time.time(),
-        "button": None,
-        "button_name": None,
-        "push": False,
-        "double_push": False,
-        "hold": False,
-    }
-
-    return {
-        "session_id": session_id
-    }
-
-
-
-@app.get("/api/flic/test/{session_id}")
-def get_flic_test(session_id: str):
-    return test_sessions.get(session_id, {})
