@@ -3276,3 +3276,9 @@ def start_flic_test():
     return {
         "session_id": session_id
     }
+
+
+
+@app.get("/api/flic/test/{session_id}")
+def get_flic_test(session_id: str):
+    return test_sessions.get(session_id, {})
