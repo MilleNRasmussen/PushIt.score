@@ -3235,7 +3235,7 @@ def check_corporate_button(data: CorporateButtonCheck):
 
 
 
-@router.post("/webhook_test/{action}")
+@app.post("/webhook_test/{action}")
 async def webhook_test(action: str, request: Request):
     print(f"\n=== FLIC TEST ({action}) ===")
 
