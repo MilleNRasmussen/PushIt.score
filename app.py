@@ -3254,3 +3254,25 @@ async def webhook_test(action: str, request: Request):
         "success": True,
         "action": action,
     }
+
+
+test_sessions = {}
+
+@app.post("/api/flic/test/start")
+def start_flic_test():
+    import uuid
+
+    session_id = str(uuid.uuid4())
+
+    test_sessions[session_id] = {
+        "started": time.time(),
+        "button": None,
+        "button_name": None,
+        "push": False,
+        "double_push": False,
+        "hold": False,
+    }
+
+    return {
+        "session_id": session_id
+    }
