@@ -13,6 +13,9 @@ from fastapi.responses import JSONResponse
 from fastapi import WebSocket     
 
 
+from fastapi import APIRouter, Request
+
+router = APIRouter()
 
 
 
@@ -3228,3 +3231,26 @@ def check_corporate_button(data: CorporateButtonCheck):
     finally:
 
         conn.close()
+
+
+
+
+@router.post("/webhook_test/{action}")
+async def webhook_test(action: str, request: Request):
+    print(f"\n=== FLIC TEST ({action}) ===")
+
+    print("\nHeaders:")
+    for key, value in request.headers.items():
+        print(f"{key}: {value}")
+
+    body = await request.body()
+
+    print("\nBody:")
+    print(body.decode())
+
+    print("============================\n")
+
+    return {
+        "success": True,
+        "action": action,
+    }
