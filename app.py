@@ -3283,7 +3283,8 @@ async def webhook_test(action: str, request: Request):
 
             elif action == "hold":
                 session["hold"] = True
-
+            
+            print("UPDATED:", sid, session, flush=True)
             break
 
     print("============================\n")
@@ -3298,7 +3299,9 @@ async def webhook_test(action: str, request: Request):
 @app.post("/api/flic/test/start")
 def start_flic_test():
     import uuid
-
+    
+    
+    
     session_id = str(uuid.uuid4())
 
     test_sessions[session_id] = {
@@ -3309,7 +3312,8 @@ def start_flic_test():
         "double_push": False,
         "hold": False,
     }
-
+    print("START", session_id, flush=True)
+    print(test_sessions, flush=True)
     return {
         "session_id": session_id
     }
@@ -3317,4 +3321,7 @@ def start_flic_test():
 
 @app.get("/api/flic/test/{session_id}")
 def get_flic_test(session_id: str):
+    print("GET", session_id, flush=True)
+    print(test_sessions, flush=True)
     return test_sessions.get(session_id, {})
+    
