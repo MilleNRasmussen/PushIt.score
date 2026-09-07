@@ -3278,7 +3278,7 @@ async def webhook_test(action: str, request: Request):
             if action == "push":
                 session["push"] = True
 
-            elif action == "double":
+            elif action == "double_push":
                 session["double_push"] = True
 
             elif action == "hold":
