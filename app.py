@@ -26,6 +26,9 @@ hold_state = {
 
 COMBO_WINDOW = 1000  # ms
 
+
+test_sessions = {}
+
 app = FastAPI()
 
 # ---------- SSE CLIENTS ----------
