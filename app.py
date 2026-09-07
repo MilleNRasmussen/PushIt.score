@@ -3300,7 +3300,7 @@ async def webhook_test(action: str, request: Request):
 def start_flic_test():
     import uuid
     
-    
+    test_sessions.clear()   # Fjern gamle tests
     
     session_id = str(uuid.uuid4())
 
