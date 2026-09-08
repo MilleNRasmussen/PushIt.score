@@ -17,7 +17,7 @@ from fastapi import APIRouter, Request
 
 router = APIRouter()
 
-
+active_test = None
 
 hold_state = {
     "home": 0,
@@ -26,8 +26,6 @@ hold_state = {
 
 COMBO_WINDOW = 1000  # ms
 
-
-test_sessions = {}
 
 app = FastAPI()
 
@@ -3253,8 +3251,11 @@ def check_corporate_button(data: CorporateButtonCheck):
 
 
 
+
 @app.post("/webhook_test/{action}")
 async def webhook_test(action: str, request: Request):
+    global active_test
+
     print(f"\n=== FLIC TEST ({action}) ===")
 
     button_id = request.headers.get("button-serial-number")
@@ -3265,27 +3266,46 @@ async def webhook_test(action: str, request: Request):
         print(f"{key}: {value}")
 
     body = await request.body()
+
     print("\nBody:")
     print(body.decode())
 
-    # Opdater aktiv testsession
-    for session in test_sessions.values():
-        if time.time() - session["started"] < 300:
+    # Ingen aktiv test
+    if not active_test:
+        return {
+            "success": True,
+            "action": action,
+        }
 
-            session["button"] = button_id
-            session["button_name"] = button_name
+    # Timeout efter 2 minutter
+    if time.time() - active_test["started"] > 120:
+        active_test = None
+        return {
+            "success": True,
+            "action": action,
+        }
 
-            if action == "push":
-                session["push"] = True
+    # Opdater testen
+    active_test["button"] = button_id
+    active_test["button_name"] = button_name
 
-            elif action == "double_push":
-                session["double_push"] = True
+    if action == "push":
+        active_test["push"] = True
+    elif action == "double_push":
+        active_test["double_push"] = True
+    elif action == "hold":
+        active_test["hold"] = True
 
-            elif action == "hold":
-                session["hold"] = True
-            
-            print("UPDATED:", sid, session, flush=True)
-            break
+    print("UPDATED:", active_test, flush=True)
+
+    # Er testen færdig?
+    if (
+        active_test["push"]
+        and active_test["double_push"]
+        and active_test["hold"]
+    ):
+        print("TEST COMPLETED", flush=True)
+        active_test["completed"] = True
 
     print("============================\n")
 
@@ -3300,11 +3320,22 @@ async def webhook_test(action: str, request: Request):
 def start_flic_test():
     import uuid
     
-    test_sessions.clear()   # Fjern gamle tests
+    global active_test
+
+    # Er der en aktiv test?
+    if (
+        active_test
+        and time.time() - active_test["started"] < 120
+    ):
+        return {
+            "success": False,
+            "message": "En anden bruger tester allerede en Flic Button."
+        }
     
     session_id = str(uuid.uuid4())
 
-    test_sessions[session_id] = {
+    active_test = {
+        "session_id": session_id,
         "started": time.time(),
         "button": None,
         "button_name": None,
@@ -3313,15 +3344,30 @@ def start_flic_test():
         "hold": False,
     }
     print("START", session_id, flush=True)
-    print(test_sessions, flush=True)
+    print(active_test, flush=True)
     return {
+        "success": True,
         "session_id": session_id
     }
 
 
 @app.get("/api/flic/test/{session_id}")
 def get_flic_test(session_id: str):
+    global active_test
     print("GET", session_id, flush=True)
-    print(test_sessions, flush=True)
-    return test_sessions.get(session_id, {})
+    print(active_test, flush=True)
+    
+
+    if not active_test:
+        return {}
+
+    if active_test["session_id"] != session_id:
+        return {}
+
+    # timeout
+    if time.time() - active_test["started"] > 120:
+        active_test = None
+        return {}
+
+    return active_test
     
