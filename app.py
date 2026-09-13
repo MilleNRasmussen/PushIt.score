@@ -1168,17 +1168,7 @@ async def webhook_point(request: Request):
 
         button_name = request.headers.get("button-name")
 
-        for session_id, session in test_sessions.items():
-            if time.time() - session["started"] < 300:  # 5 min
-
-                session["button"] = button_id
-                session["button_name"] = button_name
-                session["push"] = True
-
-                return {
-                    "status": "test",
-                    "session_id": session_id
-                }
+      
 
         if not button_id:
             return {"error": "No button id"}
