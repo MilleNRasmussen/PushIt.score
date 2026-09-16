@@ -2158,7 +2158,7 @@ def get_tokens():
                        WHERE cb.PublicToken = c.PublicToken
                        AND cb.Active = 1
                     ) AS IsCorporate
-            FROM CustomerClub AS C
+            FROM CustomerClub AS c
             WHERE IsActive = 1
         """)
         
