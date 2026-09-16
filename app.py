@@ -2150,6 +2150,7 @@ def get_tokens():
         cur.execute("""
             SELECT PublicToken,
                    DefaultMatchTypeID,
+                   ClubID,
                    ClubName,
                    EXISTS (
                        SELECT 1
