@@ -2150,7 +2150,13 @@ def get_tokens():
         cur.execute("""
             SELECT PublicToken,
                    DefaultMatchTypeID,
-                   ClubName
+                   ClubName,
+                   EXISTS (
+                       SELECT 1
+                       FROM CorporateButtons cb
+                       WHERE cb.ClubID = c.ClubID
+                       AND cb.Active = 1
+                    ) AS IsCorporate
             FROM CustomerClub
             WHERE IsActive = 1
         """)
