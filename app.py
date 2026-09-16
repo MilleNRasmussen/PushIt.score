@@ -2151,14 +2151,14 @@ def get_tokens():
             SELECT PublicToken,
                    DefaultMatchTypeID,
                    ClubID,
-                   ClubName,
+                   PublicToken,
                    EXISTS (
                        SELECT 1
                        FROM CorporateButtons cb
-                       WHERE cb.ClubID = c.ClubID
+                       WHERE cb.PublicToken = c.PublicToken
                        AND cb.Active = 1
                     ) AS IsCorporate
-            FROM CustomerClub
+            FROM CustomerClub AS C
             WHERE IsActive = 1
         """)
         
