@@ -3433,11 +3433,11 @@ def create_setup_session(data: dict):
 
         conn.commit()
                 
-         return {
+        return {
             "success": True,
             "session_id": session_id,
             "expires_in": 30
-         }
+        }
 
     finally:
         conn.close()
