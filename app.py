@@ -3380,7 +3380,7 @@ def create_setup_session(data: dict):
     owner_device_id = data.get("owner_device_id")
 
     conn = get_conn()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor()
 
     try:
 
@@ -3434,8 +3434,8 @@ def create_setup_session(data: dict):
         conn.commit()
                 
          return {
-            "success": true,
-            "session_id": "...",
+            "success": True,
+            "session_id": session_id,
             "expires_in": 30
          }
 
