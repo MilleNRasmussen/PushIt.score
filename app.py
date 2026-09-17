@@ -3476,10 +3476,7 @@ def heartbeat(data: dict):
             WHERE SessionID = %s
             AND IsActive = 1
 """, (session_id,))
-        """, (
-            expires,
-            session_id
-        ))
+      
 
         conn.commit()
 
