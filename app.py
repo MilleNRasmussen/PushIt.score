@@ -3424,7 +3424,7 @@ def create_setup_session(data: dict):
 
         session_id = str(uuid4())
 
-        expires = datetime.now() + timedelta(seconds=30)
+        expires = datetime.now() + timedelta(minutes=2)
 
         cur.execute("""
             INSERT INTO SetupSession
@@ -3469,16 +3469,13 @@ def heartbeat(data: dict):
 
     try:
 
-        expires = datetime.now() + timedelta(seconds=30)
-
         cur.execute("""
             UPDATE SetupSession
-            SET
-                LastHeartbeat = NOW(),
-                ExpiresAt = %s
-            WHERE
-                SessionID = %s
-                AND IsActive = 1
+            SET 
+                 LastHeartbeat = NOW()
+            WHERE SessionID = %s
+            AND IsActive = 1
+""", (session_id,))
         """, (
             expires,
             session_id
