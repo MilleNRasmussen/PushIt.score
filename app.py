@@ -3368,3 +3368,141 @@ def get_flic_test(session_id: str):
 
     return active_test
     
+
+from uuid import uuid4
+from datetime import datetime, timedelta
+from fastapi import HTTPException
+
+@app.post("/api/setup-session")
+def create_setup_session(data: dict):
+
+    public_token = data.get("public_token")
+    owner_device_id = data.get("owner_device_id")
+
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+
+    try:
+
+        # Ryd udløbne sessioner
+        cur.execute("""
+            UPDATE SetupSession
+            SET IsActive = 0
+            WHERE IsActive = 1
+              AND ExpiresAt < NOW()
+        """)
+
+        # Er der allerede en aktiv session?
+        cur.execute("""
+            SELECT SessionID
+            FROM SetupSession
+            WHERE PublicToken = %s
+              AND IsActive = 1
+            LIMIT 1
+        """, (public_token,))
+
+        existing = cur.fetchone()
+
+        if existing:
+            raise HTTPException(
+                status_code=409,
+                detail="Banen er allerede under opsætning."
+            )
+
+        session_id = str(uuid4())
+
+        expires = datetime.now() + timedelta(seconds=30)
+
+        cur.execute("""
+            INSERT INTO SetupSession
+            (
+                SessionID,
+                PublicToken,
+                OwnerDeviceID,
+                LastHeartbeat,
+                ExpiresAt
+            )
+            VALUES
+            (%s,%s,%s,NOW(),%s)
+        """, (
+            session_id,
+            public_token,
+            owner_device_id,
+            expires
+        ))
+
+        conn.commit()
+                
+         return {
+            "success": true,
+            "session_id": "...",
+            "expires_in": 30
+         }
+
+    finally:
+        conn.close()
+
+
+
+@app.post("/api/setup-session/heartbeat")
+def heartbeat(data: dict):
+
+    session_id = data.get("session_id")
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+
+        expires = datetime.now() + timedelta(seconds=30)
+
+        cur.execute("""
+            UPDATE SetupSession
+            SET
+                LastHeartbeat = NOW(),
+                ExpiresAt = %s
+            WHERE
+                SessionID = %s
+                AND IsActive = 1
+        """, (
+            expires,
+            session_id
+        ))
+
+        conn.commit()
+
+        return {
+            "success": True
+        }
+
+    finally:
+        conn.close()
+
+
+
+
+
+@app.post("/api/setup-session/close")
+def close_session(data: dict):
+
+    session_id = data.get("session_id")
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+
+        cur.execute("""
+            UPDATE SetupSession
+            SET IsActive = 0
+            WHERE SessionID = %s
+        """, (session_id,))
+
+        conn.commit()
+
+        return {
+            "success": True
+        }
+
+    finally:
+        conn.close()
