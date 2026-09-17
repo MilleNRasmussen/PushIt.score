@@ -3376,6 +3376,19 @@ from fastapi import HTTPException
 @app.post("/api/setup-session")
 def create_setup_session(data: dict):
 
+
+    print("=== SETUP SESSION ===", flush=True)
+    print(data, flush=True)
+
+    public_token = data.get("public_token")
+    owner_device_id = data.get("owner_device_id")
+
+    print("TOKEN:", public_token, flush=True)
+
+
+
+    
+
     public_token = data.get("public_token")
     owner_device_id = data.get("owner_device_id")
 
@@ -3432,7 +3445,9 @@ def create_setup_session(data: dict):
         ))
 
         conn.commit()
-                
+
+        print("INSERTED:", session_id, flush=True)
+        
         return {
             "success": True,
             "session_id": session_id,
