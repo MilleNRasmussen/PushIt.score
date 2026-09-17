@@ -3397,20 +3397,12 @@ def create_setup_session(data: dict):
 
     try:
 
-        # Ryd udløbne sessioner
-        cur.execute("""
-            UPDATE SetupSession
-            SET IsActive = 0
-            WHERE IsActive = 1
-              AND ExpiresAt < NOW()
-        """)
-
         # Er der allerede en aktiv session?
         cur.execute("""
             SELECT SessionID
             FROM SetupSession
             WHERE PublicToken = %s
-              AND IsActive = 1
+              AND ExpiresAt > NOW()
             LIMIT 1
         """, (public_token,))
 
@@ -3472,9 +3464,10 @@ def heartbeat(data: dict):
         cur.execute("""
             UPDATE SetupSession
             SET 
-                 LastHeartbeat = NOW()
+                 LastHeartbeat = NOW(),
+                 ExpiresAt = DATE_ADD(NOW(), INTERVAL 2 MINUTE)
             WHERE SessionID = %s
-            AND IsActive = 1
+            
 """, (session_id,))
       
 
@@ -3502,8 +3495,8 @@ def close_session(data: dict):
     try:
 
         cur.execute("""
-            UPDATE SetupSession
-            SET IsActive = 0
+            DELETE
+            FROM SetupSession
             WHERE SessionID = %s
         """, (session_id,))
 
