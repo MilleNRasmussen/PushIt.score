@@ -1070,6 +1070,33 @@ def get_match_token(match_id: int):
 
 def get_match_data(cur, button_id):
 
+
+ # =====================================
+    # CORPORATE BUTTON
+    # =====================================
+    cur.execute("""
+        SELECT
+            ID as match_id,
+            CASE
+                WHEN Team1ButtonID = %s THEN 'home'
+                WHEN Team2ButtonID = %s THEN 'away'
+            END as team
+        FROM MatchHeader
+        WHERE Status IN ('Live','Paused','ManualPaused','FinishedPending')
+        AND (%s IN (Team1ButtonID, Team2ButtonID))
+        ORDER BY ID DESC
+        LIMIT 1
+    """, (button_id, button_id, button_id))
+
+    row = cur.fetchone()
+
+    if row:
+        return {
+            "match_id": row["match_id"],
+            "team": row["team"]
+        }
+    
+
     # =====================================
     # NORMAL PLAYER FLIC
     # =====================================
