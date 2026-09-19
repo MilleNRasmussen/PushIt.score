@@ -395,8 +395,8 @@ async def create_match(data: MatchCreate):
         # 🔥 INSERT MATCH
         cur.execute("""
         INSERT INTO MatchHeader 
-            (TableID, MatchTypeID, MatchGameModeID, PublicToken, TeamAButtonID,
-    TeamBButtonID, Status, StartedAt, Timestamp)
+            (TableID, MatchTypeID, MatchGameModeID, PublicToken, Team1ButtonID,
+    Team2ButtonID, Status, StartedAt, Timestamp)
         VALUES (%s, %s, %s, %s, %s, %s, 'Live', NOW(), NOW())
         """, (
             table_id,
