@@ -70,6 +70,8 @@ class MatchCreate(BaseModel):
     match_gamemode_id: int
     players: List[int]
     public_token: Optional[str] = None
+    team_a_button: str | None = None
+    team_b_button: str | None = None
 
 class UserUpdate(BaseModel):
     name: str | None = None
@@ -393,13 +395,16 @@ async def create_match(data: MatchCreate):
         # 🔥 INSERT MATCH
         cur.execute("""
         INSERT INTO MatchHeader 
-            (TableID, MatchTypeID, MatchGameModeID, PublicToken, Status, StartedAt, Timestamp)
-        VALUES (%s, %s, %s, %s, 'Live', NOW(), NOW())
+            (TableID, MatchTypeID, MatchGameModeID, PublicToken, TeamAButtonID,
+    TeamBButtonID, Status, StartedAt, Timestamp)
+        VALUES (%s, %s, %s, %s, %s, %s, 'Live', NOW(), NOW())
         """, (
             table_id,
             data.match_type_id,
             data.match_gamemode_id,
-            data.public_token if data.public_token else None
+            data.public_token if data.public_token else None,
+            data.team_a_button,
+            data.team_b_button
         ))
 
         match_id = cur.lastrowid
