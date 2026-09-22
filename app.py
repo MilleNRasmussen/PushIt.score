@@ -136,6 +136,8 @@ def broadcast_flic(button_id):
   
 
 def broadcast_known(button_id, player_id, name):
+     print("🔥 BROADCAST KNOWN", button_id, player_id, name, flush=True)
+    
     for queue in clients:
         queue.put_nowait({
             "type": "known",
@@ -1253,6 +1255,8 @@ async def webhook_point(request: Request):
         print("USER:", user, flush=True)
 
         if user:
+            print("🔥 USER FOUND", user, flush=True)
+            
             broadcast_known(
                 button_id,
                 user["ID"],
