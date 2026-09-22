@@ -1242,7 +1242,7 @@ async def webhook_point(request: Request):
         # 2. FINDES KNAPPEN PÅ EN BRUGER?
         # =====================================
         cur.execute("""
-            SELECT Navn
+            SELECT ID, Navn
             FROM Users
             WHERE ButtonID = %s
         """, (button_id,))
@@ -1337,15 +1337,15 @@ async def webhook_point(request: Request):
                             "status": "assigned"
                         }
 
-    # Fallback hvis ingen setup-kamp
-    broadcast_known(
-        button_id,
-        user["Navn"]
-    )
+        # Fallback hvis ingen setup-kamp
+        broadcast_known(
+            button_id,
+            user["Navn"]
+        )
 
-    return {
-        "status": "known_no_match"
-    }
+        return {
+            "status": "known_no_match"
+        }
 
 
 
