@@ -1242,7 +1242,7 @@ async def webhook_point(request: Request):
         # 2. FINDES KNAPPEN PÅ EN BRUGER?
         # =====================================
         cur.execute("""
-            SELECT ID, Navn
+            SELECT Navn
             FROM Users
             WHERE ButtonID = %s
         """, (button_id,))
@@ -1251,108 +1251,16 @@ async def webhook_point(request: Request):
 
         print("USER:", user, flush=True)
 
-
-
-
-
-
-        
-      
-
         if user:
+            broadcast_known(
+                button_id,
+                user["Navn"]
+            )
 
-            # Find seneste kamp under opsætning
-            cur.execute("""
-                SELECT ID
-                FROM MatchHeader
-                WHERE Status = 'Setup'
-                ORDER BY ID DESC
-                LIMIT 1
-            """)
-            match = cur.fetchone()
+            return {
+                "status": "known_no_match"
+            }
 
-            if match:
-
-                # Er spilleren allerede tilføjet?
-                cur.execute("""
-                    SELECT 1
-                    FROM MatchPlayers
-                    WHERE MatchID = %s
-                    AND PlayerID = %s
-                """, (
-                    match["ID"],
-                    user["ID"]
-                ))
-
-                exists = cur.fetchone()
-
-                if not exists:
-
-                    # Find første ledige plads
-                    cur.execute("""
-                        SELECT n.PlayerNumber
-                        FROM (
-                            SELECT 1 AS PlayerNumber
-                            UNION ALL SELECT 2
-                            UNION ALL SELECT 3
-                            UNION ALL SELECT 4
-                        ) n
-                        LEFT JOIN MatchPlayers mp
-                            ON mp.MatchID = %s
-                           AND mp.PlayerNumber = n.PlayerNumber
-                        WHERE mp.PlayerNumber IS NULL
-                        ORDER BY n.PlayerNumber
-                        LIMIT 1
-                    """, (match["ID"],))
-
-                    slot = cur.fetchone()
-
-                    if slot:
-
-                        cur.execute("""
-                            INSERT INTO MatchPlayers
-                            (
-                                MatchID,
-                                PlayerID,
-                                PlayerNumber
-                            )
-                            VALUES
-                            (
-                                %s,
-                                %s,
-                                %s
-                            )
-                        """, (
-                            match["ID"],
-                            user["ID"],
-                            slot["PlayerNumber"]
-                        ))
-
-                        conn.commit()
-
-                        # Genindlæs kampen i UI
-                        broadcast_match_update(match["ID"])
-
-                        return {
-                            "status": "assigned"
-                        }
-
-        # Fallback hvis ingen setup-kamp
-        broadcast_known(
-            button_id,
-            user["Navn"]
-        )
-
-        return {
-            "status": "known_no_match"
-        }
-
-
-
-
-
-
-        
         cur.execute("""
             SELECT Description
             FROM CorporateButtons
