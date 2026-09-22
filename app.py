@@ -137,8 +137,11 @@ def broadcast_flic(button_id):
 
 def broadcast_known(button_id, player_id, name):
     print("🔥 BROADCAST KNOWN", button_id, player_id, name, flush=True)
+    print("🔥 CLIENTS:", len(clients), flush=True)
     
     for queue in clients:
+        print("🔥 SENDER TIL CLIENT", flush=True)
+        
         queue.put_nowait({
             "type": "known",
             "flic_id": button_id,
