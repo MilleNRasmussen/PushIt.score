@@ -135,11 +135,12 @@ def broadcast_flic(button_id):
         })
   
 
-def broadcast_known(button_id, name):
+def broadcast_known(button_id, player_id, name):
     for queue in clients:
         queue.put_nowait({
             "type": "known",
             "flic_id": button_id,
+            "player_id": player_id,
             "name": name
         })
 
@@ -1242,7 +1243,7 @@ async def webhook_point(request: Request):
         # 2. FINDES KNAPPEN PÅ EN BRUGER?
         # =====================================
         cur.execute("""
-            SELECT Navn
+            SELECT ID, Navn
             FROM Users
             WHERE ButtonID = %s
         """, (button_id,))
@@ -1254,6 +1255,7 @@ async def webhook_point(request: Request):
         if user:
             broadcast_known(
                 button_id,
+                user["ID"],
                 user["Navn"]
             )
 
