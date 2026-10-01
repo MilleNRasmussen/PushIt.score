@@ -620,8 +620,9 @@ def read_match_livescore(match_id: int):
                     ]
                 )
 
-    conn.close()
-
+    
+    if conn.open:
+        conn.close()
 
 
 
