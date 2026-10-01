@@ -449,6 +449,7 @@ def read_match_livescore(match_id: int):
     cur.execute("""
         SELECT
             mh.ID as MatchHeaderID,
+            mh.StartingServerMatchPlayerID,
             COALESCE(msa.HomeTeamPoint, 0) as HomeTeamPoint,
             COALESCE(msa.HomeGame, 0) as HomeGame,
             COALESCE(msa.HomeSet, 0) as HomeSet,
@@ -475,15 +476,18 @@ def read_match_livescore(match_id: int):
     """, (match_id,))
     row = cur.fetchone()
     status = row["Status"] if row else "Live"
+    
     cur.execute("""
-        SELECT mp.PlayerNumber, u.Navn
+        SELECT mp.PlayerID, mp.PlayerNumber, u.Navn
         FROM MatchPlayers mp
         JOIN Users u ON u.ID = mp.PlayerID
         WHERE mp.MatchID = %s
         ORDER BY mp.PlayerNumber
     """, (match_id,))
     players = cur.fetchall()
+    
     conn.close()
+    
     if not score:
         score = {
             "MatchHeaderID": match_id,
@@ -502,13 +506,150 @@ def read_match_livescore(match_id: int):
        home = [p["Navn"] for p in players if p["PlayerNumber"] in (1, 2)]
        away = [p["Navn"] for p in players if p["PlayerNumber"] in (3, 4)]
 
+
+
+
+
+
+
+    # =====================================================
+    # FIND CURRENT SERVER
+    # =====================================================
+    current_server_match_player_id = None
+
+    starting_server_id = score.get(
+        "StartingServerMatchPlayerID"
+    )
+
+    if starting_server_id and players:
+
+        # -------------------------------------------------
+        # 1v1
+        # -------------------------------------------------
+        if len(players) == 2:
+
+            ordered_players = [
+                p["PlayerID"]
+                for p in players
+            ]
+
+            if starting_server_id in ordered_players:
+
+                start_index = ordered_players.index(
+                    starting_server_id
+                )
+
+                total_games = (
+                    score["HomeGame"] +
+                    score["AwayGame"]
+                )
+
+                current_index = (
+                    start_index + total_games
+                ) % 2
+
+                current_server_match_player_id = (
+                    ordered_players[current_index]
+                )
+
+        # -------------------------------------------------
+        # 2v2
+        # -------------------------------------------------
+        elif len(players) == 4:
+
+            player_by_number = {
+                p["PlayerNumber"]: p["PlayerID"]
+                for p in players
+            }
+
+            # Find PlayerNumber for starting server
+            start_number = next(
+                (
+                    p["PlayerNumber"]
+                    for p in players
+                    if p["PlayerID"] == starting_server_id
+                ),
+                None
+            )
+
+            if start_number is not None:
+
+                # Team A = 1,2
+                # Team B = 3,4
+                #
+                # Server order:
+                #
+                # start server
+                # opponent's first player
+                # teammate
+                # opponent's second player
+
+                if start_number in (1, 2):
+
+                    teammate = (
+                        2 if start_number == 1 else 1
+                    )
+
+                    opponent_1 = 3
+                    opponent_2 = 4
+
+                else:
+
+                    teammate = (
+                        4 if start_number == 3 else 3
+                    )
+
+                    opponent_1 = 1
+                    opponent_2 = 2
+
+                server_order = [
+                    player_by_number[start_number],
+                    player_by_number[opponent_1],
+                    player_by_number[teammate],
+                    player_by_number[opponent_2]
+                ]
+
+                total_games = (
+                    score["HomeGame"] +
+                    score["AwayGame"]
+                )
+
+                current_server_match_player_id = (
+                    server_order[
+                        total_games % 4
+                    ]
+                )
+
+    conn.close()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # =====================================================
+    # RESPONSE
+    # =====================================================
+
     
     return {
         "score": score,
         "status": status,
         "homePlayers": home,
         "awayPlayers": away,
-        "setDefault": set_default
+        "setDefault": set_default,
+        "currentServerMatchPlayerID":
+            current_server_match_player_id
         
     }
 
