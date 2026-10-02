@@ -567,7 +567,7 @@ def read_match_livescore(match_id: int):
                 (
                     p["PlayerNumber"]
                     for p in players
-                    if p["PlayerID"] == starting_server_id
+                    if int(p["PlayerID"]) == int(starting_server_id)
                 ),
                 None
             )
