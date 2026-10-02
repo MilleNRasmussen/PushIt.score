@@ -572,6 +572,13 @@ def read_match_livescore(match_id: int):
                 None
             )
 
+
+             print("DEBUG starting_server_id:", starting_server_id, type(starting_server_id))
+             print("DEBUG players:", players)
+             print("DEBUG start_number:", start_number)
+
+
+            
             if start_number is not None:
 
                 # Team A = 1,2
