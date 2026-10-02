@@ -512,6 +512,9 @@ def read_match_livescore(match_id: int):
 
 
 
+
+
+
     # =====================================================
     # FIND CURRENT SERVER
     # =====================================================
@@ -521,15 +524,26 @@ def read_match_livescore(match_id: int):
         "StartingServerMatchPlayerID"
     )
 
-    if starting_server_id and players:
+    if starting_server_id is not None and players:
 
-        # -------------------------------------------------
+        # Sammenlign ID'er med samme datatype
+        starting_server_id = int(starting_server_id)
+
+        total_games = (
+            int(score.get("HomeGame") or 0)
+            + int(score.get("AwayGame") or 0)
+        )
+
+        home_game = int(score.get("HomeGame") or 0)
+        away_game = int(score.get("AwayGame") or 0)
+
+        # =================================================
         # 1v1
-        # -------------------------------------------------
+        # =================================================
         if len(players) == 2:
 
             ordered_players = [
-                p["PlayerID"]
+                int(p["PlayerID"])
                 for p in players
             ]
 
@@ -539,64 +553,61 @@ def read_match_livescore(match_id: int):
                     starting_server_id
                 )
 
-                total_games = (
-                    score["HomeGame"] +
-                    score["AwayGame"]
-                )
+                # TIE-BREAK: 6-6 I GAMES
+                if home_game == 6 and away_game == 6:
 
-                current_index = (
-                    start_index + total_games
-                ) % 2
+                    total_tb_points = (
+                        int(score.get("HomeTeamPoint") or 0)
+                        + int(score.get("AwayTeamPoint") or 0)
+                    )
+
+                    if total_tb_points == 0:
+                        current_index = start_index
+                    else:
+                        server_changes = (
+                            1 + (total_tb_points - 1) // 2
+                        )
+                        current_index = (
+                            start_index + server_changes
+                        ) % 2
+
+                # ALMINDELIGE GAMES
+                else:
+                    current_index = (
+                        start_index + total_games
+                    ) % 2
 
                 current_server_match_player_id = (
                     ordered_players[current_index]
                 )
 
-        # -------------------------------------------------
+        # =================================================
         # 2v2
-        # -------------------------------------------------
+        # =================================================
         elif len(players) == 4:
 
             player_by_number = {
-                p["PlayerNumber"]: p["PlayerID"]
+                int(p["PlayerNumber"]): int(p["PlayerID"])
                 for p in players
             }
 
-            # Find PlayerNumber for starting server
             start_number = next(
                 (
-                    p["PlayerNumber"]
+                    int(p["PlayerNumber"])
                     for p in players
-                    if int(p["PlayerID"]) == int(starting_server_id)
+                    if int(p["PlayerID"]) == starting_server_id
                 ),
                 None
             )
 
-
-            print("DEBUG starting_server_id:", starting_server_id, type(starting_server_id))
-            print("DEBUG players:", players)
-            print("DEBUG start_number:", start_number)
-
-
-            
             if start_number is not None:
 
-                # Team A = 1,2
-                # Team B = 3,4
-                #
-                # Server order:
-                #
-                # start server
-                # opponent's first player
-                # teammate
-                # opponent's second player
-
+                # Holdenes faste serverrækkefølge
                 if start_number in (1, 2):
 
                     teammate = (
                         2 if start_number == 1 else 1
                     )
-
                     opponent_1 = 3
                     opponent_2 = 4
 
@@ -605,7 +616,6 @@ def read_match_livescore(match_id: int):
                     teammate = (
                         4 if start_number == 3 else 3
                     )
-
                     opponent_1 = 1
                     opponent_2 = 2
 
@@ -616,28 +626,37 @@ def read_match_livescore(match_id: int):
                     player_by_number[opponent_2]
                 ]
 
-                total_games = (
-                    score["HomeGame"] +
-                    score["AwayGame"]
-                )
+                # TIE-BREAK: 6-6 I GAMES
+                if home_game == 6 and away_game == 6:
 
-                current_server_match_player_id = (
-                    server_order[
-                        total_games % 4
-                    ]
-                )
+                    total_tb_points = (
+                        int(score.get("HomeTeamPoint") or 0)
+                        + int(score.get("AwayTeamPoint") or 0)
+                    )
 
-    
+                    if total_tb_points == 0:
+                        server_index = 0
+                    else:
+                        server_index = (
+                            1 + (total_tb_points - 1) // 2
+                        ) % 4
+
+                    current_server_match_player_id = (
+                        server_order[
+                            (start_number * 0 + server_index)
+                        ]
+                    )
+
+                # ALMINDELIGE GAMES
+                else:
+
+                    current_server_match_player_id = (
+                        server_order[total_games % 4]
+                    )
+
+
     if conn.open:
         conn.close()
-
-
-
-
-
-
-
-
 
 
 
