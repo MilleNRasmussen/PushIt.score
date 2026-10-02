@@ -573,9 +573,9 @@ def read_match_livescore(match_id: int):
             )
 
 
-             print("DEBUG starting_server_id:", starting_server_id, type(starting_server_id))
-             print("DEBUG players:", players)
-             print("DEBUG start_number:", start_number)
+            print("DEBUG starting_server_id:", starting_server_id, type(starting_server_id))
+            print("DEBUG players:", players)
+            print("DEBUG start_number:", start_number)
 
 
             
