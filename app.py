@@ -847,6 +847,136 @@ async def flic_webhook_away(request: Request):
 
 
 
+
+
+
+
+@app.post("/api/live/setup")
+def activate_live_setup(data: dict):
+
+    token = data.get("token")
+
+    if not token:
+        return {"error": "Token mangler"}
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            INSERT INTO LiveSetup
+                (Token, Active, UpdatedAt)
+            VALUES
+                (%s, TRUE, NOW())
+            ON DUPLICATE KEY UPDATE
+                Active = TRUE,
+                UpdatedAt = NOW()
+        """, (token,))
+
+        conn.commit()
+
+        return {"ok": True}
+
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
+
+
+
+@app.post("/api/live/setup/state")
+def save_live_setup_state(data: dict):
+
+    token = data.get("token")
+
+    if not token:
+        return {"error": "Token mangler"}
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+
+        state = {
+            "teamA": data.get("teamA"),
+            "teamB": data.get("teamB"),
+            "teamAButton": data.get("teamAButton"),
+            "teamBButton": data.get("teamBButton"),
+            "mode": data.get("mode"),
+            "matchType": data.get("matchType"),
+            "selectedServer": data.get("selectedServer"),
+            "serverDrawRunning": data.get("serverDrawRunning"),
+        }
+
+        cur.execute("""
+            INSERT INTO LiveSetupState
+                (Token, State, UpdatedAt)
+            VALUES
+                (%s, %s, NOW())
+            ON DUPLICATE KEY UPDATE
+                State = VALUES(State),
+                UpdatedAt = NOW()
+        """, (
+            token,
+            json.dumps(state)
+        ))
+
+        conn.commit()
+
+        return {"ok": True}
+
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
+
+
+
+
+@app.get("/api/live/setup/state/{token}")
+def get_live_setup_state(token: str):
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+
+        cur.execute("""
+            SELECT
+                State,
+                UpdatedAt
+            FROM LiveSetupState
+            WHERE Token = %s
+            LIMIT 1
+        """, (token,))
+
+        row = cur.fetchone()
+
+        if not row:
+            return {
+                "active": False,
+                "state": None
+            }
+
+        return {
+            "active": True,
+            "state": json.loads(row["State"]),
+            "updatedAt": row["UpdatedAt"]
+        }
+
+    except Exception as e:
+
+        return {
+            "error": str(e)
+        }
+
+    finally:
+        conn.close()
+
 # =====================================================
 # Live token
 # =====================================================
@@ -906,12 +1036,6 @@ def get_live_match(token: str):
             ))
 
             match = cur.fetchone()
-
-            if match:
-                return {
-                    "match_id": match["ID"],
-                    "status": match["Status"]
-                }
 
             # ==========================================
             # Find næste kamp der mangler MatchID
@@ -1094,16 +1218,33 @@ def get_live_match(token: str):
 
         match = cur.fetchone()
 
+
+
+
         if match:
             return {
                 "match_id": match["ID"],
-                "status": match["Status"]
+                "status": match["Status"],
+                "setup_active": False
             }
+
+        cur.execute("""
+            SELECT Active
+            FROM LiveSetup
+            WHERE Token = %s
+            LIMIT 1
+        """, (token,))
+
+        setup = cur.fetchone()
 
         return {
             "match_id": None,
-            "status": None
+            "status": None,
+            "setup_active": bool(
+                setup and setup["Active"]
+            )
         }
+    
 
     except Exception as e:
         conn.rollback()
