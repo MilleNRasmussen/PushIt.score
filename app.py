@@ -976,7 +976,42 @@ def get_live_setup_state(token: str):
 
     finally:
         conn.close()
+@app.post("/api/live/setup/reset")
+def reset_live_setup(data: dict):
 
+    token = data.get("token")
+
+    if not token:
+        return {"error": "Token mangler"}
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+
+        cur.execute("""
+            UPDATE LiveSetup
+            SET Active = FALSE,
+                UpdatedAt = NOW()
+            WHERE Token = %s
+        """, (token,))
+
+        cur.execute("""
+            DELETE FROM LiveSetupState
+            WHERE Token = %s
+        """, (token,))
+
+        conn.commit()
+
+        return {"ok": True}
+
+    except Exception as e:
+
+        conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
 # =====================================================
 # Live token
 # =====================================================
