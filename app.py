@@ -937,18 +937,25 @@ def save_live_setup_state(data: dict):
 
 
 
+
+
+
+
 @app.get("/api/live/setup/state/{token}")
 def get_live_setup_state(token: str):
-
     conn = get_conn()
     cur = conn.cursor()
 
     try:
-
         cur.execute("""
             SELECT
                 State,
-                UpdatedAt
+                UpdatedAt,
+                CASE
+                    WHEN UpdatedAt < NOW() - INTERVAL 2 MINUTE
+                    THEN 1
+                    ELSE 0
+                END AS IsExpired
             FROM LiveSetupState
             WHERE Token = %s
             LIMIT 1
@@ -956,12 +963,44 @@ def get_live_setup_state(token: str):
 
         row = cur.fetchone()
 
+        # Ingen gemt opsætning: sørg for, at den er deaktiveret
         if not row:
+            cur.execute("""
+                UPDATE LiveSetup
+                SET Active = FALSE,
+                    UpdatedAt = NOW()
+                WHERE Token = %s
+            """, (token,))
+
+            conn.commit()
+
             return {
                 "active": False,
                 "state": None
             }
 
+        # Opsætningen er mere end 2 minutter gammel
+        if row["IsExpired"]:
+            cur.execute("""
+                UPDATE LiveSetup
+                SET Active = FALSE,
+                    UpdatedAt = NOW()
+                WHERE Token = %s
+            """, (token,))
+
+            cur.execute("""
+                DELETE FROM LiveSetupState
+                WHERE Token = %s
+            """, (token,))
+
+            conn.commit()
+
+            return {
+                "active": False,
+                "state": None
+            }
+
+        # Opsætningen er stadig gyldig
         return {
             "active": True,
             "state": json.loads(row["State"]),
@@ -969,13 +1008,16 @@ def get_live_setup_state(token: str):
         }
 
     except Exception as e:
-
-        return {
-            "error": str(e)
-        }
+        conn.rollback()
+        return {"error": str(e)}
 
     finally:
         conn.close()
+
+
+
+
+
 @app.post("/api/live/setup/reset")
 def reset_live_setup(data: dict):
 
