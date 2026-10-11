@@ -1958,18 +1958,37 @@ def get_matchtypes():
 
 
 
+
 @app.get("/recent-matches")
-def recent_matches():
+@app.get("/player-matches/{player_id}")
+def recent_matches(player_id: int = None):
     conn = get_conn()
     cur = conn.cursor()
     try:
-        cur.execute("""
-            SELECT ID, MatchTypeID
-            FROM MatchHeader
-            WHERE Status = 'Closed'
-            ORDER BY ID DESC
-            LIMIT 20
-        """)
+        if player_id is not None:
+            cur.execute("""
+                SELECT DISTINCT
+                    mh.ID,
+                    mh.MatchTypeID,
+                    mh.Status
+                FROM MatchHeader mh
+                JOIN MatchPlayers mp
+                    ON mp.MatchID = mh.ID
+                WHERE mp.PlayerID = %s
+                ORDER BY mh.ID DESC
+            """, (player_id,))
+        else:
+            cur.execute("""
+                SELECT
+                    ID,
+                    MatchTypeID,
+                    Status
+                FROM MatchHeader
+                WHERE Status = 'Closed'
+                ORDER BY ID DESC
+                LIMIT 20
+            """)
+
         matches = cur.fetchall()
         result = []
 
@@ -2155,7 +2174,8 @@ def recent_matches():
                 "awaySet": away_sets,
                 "sets": sets_formatted,
                 "playedAt": last.get("Timestamp") or "",
-                "matchTypeId": match_type_id
+                "matchTypeId": match_type_id,
+                "status": m["Status"]
             })
 
         return result
