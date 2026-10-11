@@ -205,7 +205,7 @@ def close_finished_matches():
                   mh.PausedAt,
                   md.LastPoint,
                   mh.StartedAt
-                ) < NOW() - INTERVAL 2 MINUTE;
+                ) < NOW() - INTERVAL 10 MINUTE;
 
            
         """)
