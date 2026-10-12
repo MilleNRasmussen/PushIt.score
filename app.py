@@ -1053,7 +1053,7 @@ def reset_live_setup(data: dict):
 
         conn.commit()
 
-         return {
+        return {
             "ok": True,
             "token": token,
             "closed_matches": closed_matches
