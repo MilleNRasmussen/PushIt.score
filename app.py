@@ -1030,6 +1030,14 @@ def reset_live_setup(data: dict):
     cur = conn.cursor()
 
     try:
+         cur.execute("""
+            UPDATE MatchHeader
+            SET Status = 'Closed'
+            WHERE PublicToken = %s
+              AND Status IN ('FinishedPending', 'Finished')
+        """, (token,))
+
+        closed_matches = cur.rowcount
 
         cur.execute("""
             UPDATE LiveSetup
@@ -1045,12 +1053,17 @@ def reset_live_setup(data: dict):
 
         conn.commit()
 
-        return {"ok": True}
+         return {
+            "ok": True,
+            "token": token,
+            "closed_matches": closed_matches
+         }
 
     except Exception as e:
 
         conn.rollback()
-        return {"error": str(e)}
+        print("RESET LIVE SETUP ERROR:", str(e), flush=True)
+        return {"ok": False, "error": str(e)}
 
     finally:
         conn.close()
