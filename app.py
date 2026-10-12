@@ -1030,7 +1030,7 @@ def reset_live_setup(data: dict):
     cur = conn.cursor()
 
     try:
-         cur.execute("""
+        cur.execute("""
             UPDATE MatchHeader
             SET Status = 'Closed'
             WHERE PublicToken = %s
