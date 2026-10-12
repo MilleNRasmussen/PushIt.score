@@ -2498,18 +2498,15 @@ def create_tournament(data: TournamentCreate):
 
 
 
-
 @app.get("/api/test-kpi/{match_id}")
 def test_kpi(match_id: int):
     conn = get_conn()
     cur = conn.cursor()
 
     try:
-        calculate_kpi(match_id)
-
         cur.execute("""
             SELECT *
-            FROM MatchKpiCache
+            FROM MatchKpi
             WHERE MatchHeaderID = %s
         """, (match_id,))
 
@@ -2521,7 +2518,14 @@ def test_kpi(match_id: int):
         return row
 
     finally:
+        cur.close()
         conn.close()
+
+
+
+
+
+
 
 
 
