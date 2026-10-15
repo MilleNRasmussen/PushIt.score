@@ -3850,3 +3850,52 @@ from uuid import uuid4
 from datetime import datetime, timedelta
 from fastapi import HTTPException
 
+
+@app.get("/match-button-points/{match_id}")
+def get_match_button_points(match_id: int):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            WITH source1 AS (
+                SELECT
+                    ButtonID_Home AS ButtonID,
+                    COUNT(*) AS AntalPoint
+                FROM MatchDetailPoint
+                WHERE MatchHeaderID = %s
+                  AND Deleted = 0
+                  AND ButtonID_Home IS NOT NULL
+                GROUP BY ButtonID_Home
+
+                UNION ALL
+
+                SELECT
+                    ButtonID_away AS ButtonID,
+                    COUNT(*) AS AntalPoint
+                FROM MatchDetailPoint
+                WHERE MatchHeaderID = %s
+                  AND Deleted = 0
+                  AND ButtonID_away IS NOT NULL
+                GROUP BY ButtonID_away
+            )
+            SELECT
+                mp.PlayerNumber,
+                mp.PlayerID,
+                u.navn AS Navn,
+                mp.ButtonID,
+                COALESCE(s.AntalPoint, 0) AS AntalPoint
+            FROM MatchPlayers mp
+            LEFT JOIN Users u
+                ON u.ID = mp.PlayerID
+            LEFT JOIN source1 s
+                ON s.ButtonID = mp.ButtonID
+            WHERE mp.MatchID = %s
+            ORDER BY mp.PlayerNumber
+        """, (match_id, match_id, match_id))
+
+        return cur.fetchall()
+
+    finally:
+        cur.close()
+        conn.close()
