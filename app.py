@@ -2209,7 +2209,7 @@ def get_group_matches(group_id: int):
     cur = conn.cursor()
 
     try:
-        # Hent alle spillere i gruppen
+        # Hent alle medlemmer af gruppen
         cur.execute("""
             SELECT PlayerID
             FROM PlayerGroupMembers
@@ -2217,18 +2217,27 @@ def get_group_matches(group_id: int):
         """, (group_id,))
 
         members = cur.fetchall()
+        group_player_ids = {
+            int(member["PlayerID"])
+            for member in members
+        }
 
     except Exception as e:
+        print("ERROR get_group_matches:", e, flush=True)
         return {"error": str(e)}
 
     finally:
         conn.close()
 
-    # Hent kampene for gruppens spillere via eksisterende endpoint-logik
+    # Ingen medlemmer = ingen kampe
+    if not group_player_ids:
+        return []
+
+    # Hent kampe for gruppens medlemmer
     matches_by_id = {}
 
-    for member in members:
-        player_matches = recent_matches(member["PlayerID"])
+    for player_id in group_player_ids:
+        player_matches = recent_matches(player_id)
 
         if not isinstance(player_matches, list):
             continue
@@ -2236,13 +2245,31 @@ def get_group_matches(group_id: int):
         for match in player_matches:
             matches_by_id[match["id"]] = match
 
+    # Behold kun kampe, hvor ALLE deltagere er gruppemedlemmer
+    group_matches = []
+
+    for match in matches_by_id.values():
+        players = (
+            match.get("homePlayers", [])
+            + match.get("awayPlayers", [])
+        )
+
+        match_player_ids = {
+            int(player["playerid"])
+            for player in players
+            if player.get("playerid") is not None
+        }
+
+        # Kampen skal have deltagere, og alle skal være i gruppen
+        if match_player_ids and match_player_ids.issubset(group_player_ids):
+            group_matches.append(match)
+
     # Nyeste kampe først
     return sorted(
-        matches_by_id.values(),
+        group_matches,
         key=lambda match: match["id"],
         reverse=True
     )
-
 
 
 
