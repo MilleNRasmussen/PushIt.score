@@ -2203,6 +2203,46 @@ def recent_matches(player_id: int = None):
 
 
 
+@app.get("/player-groups/{group_id}/matches")
+def get_group_matches(group_id: int):
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        # Hent alle spillere i gruppen
+        cur.execute("""
+            SELECT PlayerID
+            FROM PlayerGroupMembers
+            WHERE GroupID = %s
+        """, (group_id,))
+
+        members = cur.fetchall()
+
+    except Exception as e:
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
+
+    # Hent kampene for gruppens spillere via eksisterende endpoint-logik
+    matches_by_id = {}
+
+    for member in members:
+        player_matches = recent_matches(member["PlayerID"])
+
+        if not isinstance(player_matches, list):
+            continue
+
+        for match in player_matches:
+            matches_by_id[match["id"]] = match
+
+    # Nyeste kampe først
+    return sorted(
+        matches_by_id.values(),
+        key=lambda match: match["id"],
+        reverse=True
+    )
+
 
 
 
