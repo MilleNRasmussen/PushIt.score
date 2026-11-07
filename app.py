@@ -65,6 +65,48 @@ def get_conn():
         charset="utf8mb4"
     )
 
+
+def check_match_completed(cur, match_id):
+
+    cur.execute("""
+        SELECT
+            mh.MatchSet,
+            COALESCE(msa.HomeSet, 0) AS HomeSet,
+            COALESCE(msa.AwaySet, 0) AS AwaySet
+        FROM MatchHeader mh
+        LEFT JOIN MatchesScoreActual msa
+            ON msa.MatchHeaderID = mh.ID
+        WHERE mh.ID = %s
+        LIMIT 1
+    """, (match_id,))
+
+    match = cur.fetchone()
+
+    if not match:
+        return
+
+    # NULL betyder best-of-3
+    match_set = match["MatchSet"] or 3
+
+    sets_to_win = 3 if match_set == 5 else 2
+
+    is_completed = int(
+        match["HomeSet"] >= sets_to_win
+        or match["AwaySet"] >= sets_to_win
+    )
+
+    # Opdater kun hvis værdien har ændret sig
+    cur.execute("""
+        UPDATE MatchHeader
+        SET IsCompleted = %s
+        WHERE ID = %s
+          AND IsCompleted <> %s
+    """, (is_completed, match_id, is_completed))
+
+
+
+
+
 # ---------- MODELS ----------
 class MatchCreate(BaseModel):
     match_type_id: int
