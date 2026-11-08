@@ -1681,6 +1681,8 @@ async def webhook_point(request: Request):
                 )
             )
 
+            check_match_completed(cur, data["match_id"])
+            
             conn.commit()
 
             return {
