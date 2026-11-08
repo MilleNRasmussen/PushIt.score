@@ -1424,6 +1424,10 @@ async def delete_last_point(request: Request):
             return {"error": "No button id"}
 
         cur.callproc("SP_DeleteLastPointPadel", (button_id,))
+
+        check_match_completed(cur, data["match_id"])
+
+        
         conn.commit()
 
         return {"status": "ok"}
