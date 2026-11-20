@@ -117,6 +117,15 @@ class MatchCreate(BaseModel):
     team_b_button: str | None = None
     server_match_player_id: int
 
+
+
+
+class MatchPlayersCheck(BaseModel):
+    players: List[int]
+
+
+
+
 class UserUpdate(BaseModel):
     name: str | None = None
     has_flic: int | None = None
@@ -391,7 +400,50 @@ async def update_user(user_id: int, data: UserUpdate):
         conn.close()
 
 
+# ---------- CHECK UNFINISHED MATCHES ----------
+@app.post("/check-unfinished-matches")
+def check_unfinished_matches(data: MatchPlayersCheck):
 
+    if not data.players:
+        return {"matches": []}
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        placeholders = ",".join(["%s"] * len(data.players))
+
+        cur.execute(f"""
+            SELECT
+                mh.ID AS match_id,
+                mh.TableID,
+                mh.Status,
+                mh.StartedAt,
+                COUNT(DISTINCT mp.PlayerID) AS player_count
+            FROM MatchHeader mh
+            JOIN MatchPlayers mp
+                ON mp.MatchID = mh.ID
+            WHERE mp.PlayerID IN ({placeholders})
+              AND mh.IsCompleted = 0
+            GROUP BY
+                mh.ID,
+                mh.TableID,
+                mh.Status,
+                mh.StartedAt
+            HAVING COUNT(DISTINCT mp.PlayerID) = %s
+            ORDER BY mh.ID DESC
+        """, (*data.players, len(set(data.players))))
+
+        matches = cur.fetchall()
+
+        return {"matches": matches}
+
+    except Exception as e:
+        print("CHECK UNFINISHED MATCHES ERROR:", str(e))
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
 
 
 
