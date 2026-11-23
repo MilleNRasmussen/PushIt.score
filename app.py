@@ -132,6 +132,53 @@ class UserUpdate(BaseModel):
     button_id: str | None = None
 
 
+# ---------- FOLLOW USER ----------
+
+@app.post("/users/{follower_id}/follow/{followed_id}")
+def follow_user(follower_id: int, followed_id: int):
+
+    if follower_id == followed_id:
+        return {"error": "Du kan ikke følge dig selv"}
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    try:
+        # Kontroller at begge brugere findes
+        cur.execute("""
+            SELECT ID
+            FROM Users
+            WHERE ID IN (%s, %s)
+        """, (follower_id, followed_id))
+
+        users = cur.fetchall()
+
+        if len(users) != 2:
+            return {"error": "Bruger ikke fundet"}
+
+        # Opret follow-relation
+        cur.execute("""
+            INSERT IGNORE INTO UserFollow
+                (FollowerUserID, FollowedUserID)
+            VALUES (%s, %s)
+        """, (follower_id, followed_id))
+
+        conn.commit()
+
+        return {
+            "status": "ok",
+            "following": True,
+            "already_following": cur.rowcount == 0
+        }
+
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+        conn.close()
+
+
 # =====================================================
 # SSE EVENT STREAM
 # =====================================================
